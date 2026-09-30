@@ -1,139 +1,156 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getDb, sql } from '@/lib/db';
 import { computeLevies } from '@/lib/ghanaLevies';
-import { postJournalInTx, type JournalLine, ClosedPeriodError } from '@/lib/accounting';
-import { getIdempotentResponse, saveIdempotentResponse } from '@/lib/idempotency';
+import { nextDocumentNumber, postJournalInTx, toCents, type JournalLine } from '@/lib/accounting';
 import { validateApiAuth } from '@/lib/apiAuth';
+import { ApiError, errorResponse, parseBody, withIdempotency } from '@/lib/apiErrors';
+import { parseBusinessDate, businessDate } from '@/lib/dates';
 import { logAudit } from '@/lib/auditLog';
 import { computeCreditExposure } from '@/lib/creditLimit';
 
+const money = z.number().finite().max(1e12);
+
+const createInvoiceSchema = z.object({
+  clientId: z.number().int().positive(),
+  invoiceDate: businessDate.optional(),
+  dueDate: businessDate.optional(),
+  lineItems: z
+    .array(
+      z.object({
+        description: z.string().trim().min(1).max(500),
+        quantity: z.number().finite().positive().max(1e9),
+        unitPrice: money.nonnegative(),
+      })
+    )
+    .min(1, 'At least one line item is required.')
+    .max(200),
+  applyGhanaLevies: z.boolean().default(true),
+  enforceCreditLimit: z.boolean().default(false),
+});
+
 export async function POST(req: NextRequest) {
-  try {
-    // 1. Authorization & Permission check
-    const { session, errorResponse } = validateApiAuth(req, 'finance.invoices.create');
-    if (errorResponse) return errorResponse;
+  const { session, errorResponse: authError } = validateApiAuth(req, 'finance.invoices.create');
+  if (authError || !session) return authError!;
 
-    // 2. Idempotency Key validation
-    const idempotencyKey =
-      req.headers.get('idempotency-key') ||
-      req.headers.get('x-idempotency-key');
-
-    if (idempotencyKey) {
-      const cached = getIdempotentResponse(idempotencyKey);
-      if (cached) {
-        return NextResponse.json(cached.responseBody, { status: cached.responseStatus });
-      }
-    }
-
-    const body = await req.json();
-    const { clientId, invoiceDate, dueDate, postedBy, lineItems, applyGhanaLevies = true, enforceCreditLimit = false } = body;
-
-    if (!clientId || !lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
-      return NextResponse.json(
-        { status: 'ERROR', message: 'clientId and at least one lineItem are required.' },
-        { status: 400 }
-      );
-    }
-
-    const subTotal = lineItems.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0);
-    const levies = applyGhanaLevies ? computeLevies(subTotal) : { net: subTotal, vat: 0, nhis: 0, getfund: 0, gross: subTotal };
-
-    const invDate = invoiceDate ? new Date(invoiceDate) : new Date();
-    const due = dueDate ? new Date(dueDate) : new Date(invDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-    if (due < invDate) {
-      return NextResponse.json(
-        { status: 'ERROR', message: 'dueDate cannot be earlier than invoiceDate.' },
-        { status: 400 }
-      );
-    }
-
-    const db = await getDb();
-
-    // 3. Optional Credit Limit Exposure Enforcement
-    if (enforceCreditLimit) {
-      const exposure = await computeCreditExposure(db, clientId);
-      if (exposure.creditLimit != null && exposure.available < levies.gross) {
-        return NextResponse.json(
-          {
-            status: 'ERROR',
-            code: 'CREDIT_LIMIT_EXCEEDED',
-            message: `Invoice gross amount (${levies.gross}) exceeds client available credit limit (${exposure.available}).`,
-            creditLimit: exposure.creditLimit,
-            netExposure: exposure.netExposure,
-            availableCredit: exposure.available,
-          },
-          { status: 403 }
-        );
-      }
-    }
-
-
-    const tx = new sql.Transaction(db);
-    await tx.begin();
-
+  return withIdempotency(req, 'invoices.create', session.userId, async () => {
     try {
-      // 1. Generate Next Invoice Number
-      const cntRes = await new sql.Request(tx).query("SELECT COUNT(*) AS cnt FROM Invoices");
-      const seq = String((cntRes.recordset[0]?.cnt || 0) + 1).padStart(6, '0');
-      const year = new Date().getFullYear();
-      const invoiceNumber = `INV-${year}-${seq}`;
+      const input = await parseBody(req, createInvoiceSchema);
 
-      // 2. Insert Invoice Record
-      const invRes = await new sql.Request(tx)
-        .input('invoiceNumber', invoiceNumber)
-        .input('clientId', clientId)
-        .input('invoiceDate', invDate)
-        .input('dueDate', due)
-        .input('subTotal', levies.net)
-        .input('vatAmount', levies.vat)
-        .input('nhisAmount', levies.nhis)
-        .input('getfundAmount', levies.getfund)
-        .input('totalAmount', levies.gross)
-        .input('balanceDue', levies.gross)
-        .query(`
-          INSERT INTO Invoices
-            (InvoiceNumber, ClientId, InvoiceDate, DueDate, SubTotal, VatAmount, NhisAmount, GetfundAmount, TotalAmount, BalanceDue, Status)
-          OUTPUT INSERTED.Id
-          VALUES
-            (@invoiceNumber, @clientId, @invoiceDate, @dueDate, @subTotal, @vatAmount, @nhisAmount, @getfundAmount, @totalAmount, @balanceDue, 'UNPAID')
-        `);
+      const subTotalCents = input.lineItems.reduce(
+        (acc, item) => acc + toCents(item.quantity * item.unitPrice),
+        0
+      );
+      if (subTotalCents <= 0) throw new ApiError(400, 'Invoice total must be greater than zero.');
+      const subTotal = subTotalCents / 100;
+      const levies = input.applyGhanaLevies
+        ? computeLevies(subTotal)
+        : { net: subTotal, vat: 0, nhis: 0, getfund: 0, gross: subTotal };
 
-      const invoiceId = invRes.recordset[0].Id;
+      const invDate = input.invoiceDate ? parseBusinessDate(input.invoiceDate) : new Date();
+      const due = input.dueDate
+        ? parseBusinessDate(input.dueDate)
+        : new Date(invDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (due < invDate) throw new ApiError(400, 'dueDate cannot be earlier than invoiceDate.');
 
-      // 3. Post General Ledger Entry
-      const lines: JournalLine[] = [
-        { accountCode: '1100', description: `Trade Receivables: ${invoiceNumber}`, debit: levies.gross },
-        { accountCode: '4001', description: `Sales Revenue: ${invoiceNumber}`, credit: levies.net },
-      ];
+      const db = await getDb();
 
-      if (levies.vat > 0) lines.push({ accountCode: '2100', description: `VAT (15%) on ${invoiceNumber}`, credit: levies.vat });
-      if (levies.nhis > 0) lines.push({ accountCode: '2102', description: `NHIS (2.5%) on ${invoiceNumber}`, credit: levies.nhis });
-      if (levies.getfund > 0) lines.push({ accountCode: '2103', description: `GETFund (2.5%) on ${invoiceNumber}`, credit: levies.getfund });
+      const clientRes = await db.request().input('clientId', input.clientId)
+        .query('SELECT Id, Name FROM Clients WHERE Id = @clientId');
+      const client = clientRes.recordset[0];
+      if (!client) throw new ApiError(404, 'Client not found.');
 
-      const glResult = await postJournalInTx(tx, db, {
-        entryDate: invDate,
-        description: `Customer Invoice ${invoiceNumber}`,
-        reference: invoiceNumber,
-        sourceModule: 'INVOICE',
-        sourceId: invoiceId,
-        lines,
-        postedBy: session?.userId || postedBy || 1,
-      });
+      if (input.enforceCreditLimit) {
+        const exposure = await computeCreditExposure(db, input.clientId);
+        if (exposure.creditLimit != null && exposure.available < levies.gross) {
+          throw new ApiError(
+            403,
+            `Invoice gross amount (${levies.gross}) exceeds client available credit limit (${exposure.available}).`,
+            'CREDIT_LIMIT_EXCEEDED',
+            { creditLimit: exposure.creditLimit, netExposure: exposure.netExposure, availableCredit: exposure.available }
+          );
+        }
+      }
 
-      await tx.commit();
+      const tx = new sql.Transaction(db);
+      await tx.begin();
+      let invoiceId: number;
+      let invoiceNumber: string;
+      let journalEntryNumber: string;
+      try {
+        invoiceNumber = await nextDocumentNumber(tx, 'invoice', 'INV', invDate);
 
-      // Log audit trail
+        const invRes = await new sql.Request(tx)
+          .input('invoiceNumber', invoiceNumber)
+          .input('clientId', input.clientId)
+          .input('clientName', client.Name)
+          .input('invoiceDate', invDate)
+          .input('dueDate', due)
+          .input('subTotal', levies.net)
+          .input('vatAmount', levies.vat)
+          .input('nhisAmount', levies.nhis)
+          .input('getfundAmount', levies.getfund)
+          .input('totalAmount', levies.gross)
+          .input('balanceDue', levies.gross)
+          .query(`
+            INSERT INTO Invoices
+              (InvoiceNumber, ClientId, ClientName, InvoiceDate, DueDate, SubTotal, VatAmount, NhisAmount, GetfundAmount, TotalAmount, BalanceDue, Status)
+            OUTPUT INSERTED.Id
+            VALUES
+              (@invoiceNumber, @clientId, @clientName, @invoiceDate, @dueDate, @subTotal, @vatAmount, @nhisAmount, @getfundAmount, @totalAmount, @balanceDue, 'UNPAID')
+          `);
+        invoiceId = invRes.recordset[0].Id;
+
+        for (const [i, item] of input.lineItems.entries()) {
+          await new sql.Request(tx)
+            .input('invoiceId', invoiceId)
+            .input('lineNumber', i + 1)
+            .input('description', item.description)
+            .input('quantity', item.quantity)
+            .input('unitPrice', item.unitPrice)
+            .input('lineTotal', toCents(item.quantity * item.unitPrice) / 100)
+            .query(`
+              INSERT INTO InvoiceLines (InvoiceId, LineNumber, Description, Quantity, UnitPrice, LineTotal)
+              VALUES (@invoiceId, @lineNumber, @description, @quantity, @unitPrice, @lineTotal)
+            `);
+        }
+
+        const lines: JournalLine[] = [
+          { accountCode: '1100', description: `Trade Receivables: ${invoiceNumber}`, debit: levies.gross },
+          { accountCode: '4001', description: `Sales Revenue: ${invoiceNumber}`, credit: levies.net },
+        ];
+        if (levies.vat > 0) lines.push({ accountCode: '2100', description: `VAT on ${invoiceNumber}`, credit: levies.vat });
+        if (levies.nhis > 0) lines.push({ accountCode: '2102', description: `NHIL on ${invoiceNumber}`, credit: levies.nhis });
+        if (levies.getfund > 0) lines.push({ accountCode: '2103', description: `GETFund on ${invoiceNumber}`, credit: levies.getfund });
+
+        const glResult = await postJournalInTx(tx, db, {
+          entryDate: invDate,
+          description: `Customer Invoice ${invoiceNumber}`,
+          reference: invoiceNumber,
+          sourceModule: 'INVOICE',
+          sourceId: invoiceId,
+          lines,
+          postedBy: session.userId,
+        });
+        journalEntryNumber = glResult.entryNumber;
+
+        await tx.commit();
+      } catch (err) {
+        await tx.rollback().catch(() => {});
+        throw err;
+      }
+
       await logAudit({
         entityType: 'INVOICE',
         entityId: invoiceId,
         action: 'POST',
-        userId: session?.userId || 1,
+        userId: session.userId,
         newValue: {
           invoiceNumber,
-          clientId,
+          clientId: input.clientId,
           invoiceDate: invDate.toISOString(),
           dueDate: due.toISOString(),
+          lineItems: input.lineItems,
           subTotal: levies.net,
           vatAmount: levies.vat,
           nhisAmount: levies.nhis,
@@ -141,41 +158,26 @@ export async function POST(req: NextRequest) {
           totalAmount: levies.gross,
           status: 'UNPAID',
         },
-        description: `Invoice ${invoiceNumber} posted for client ID ${clientId}`,
+        description: `Invoice ${invoiceNumber} posted for client ID ${input.clientId}`,
       });
 
-      const successPayload = {
-        status: 'SUCCESS',
-        invoiceId,
-        invoiceNumber,
-        subTotal: levies.net,
-        vatAmount: levies.vat,
-        nhisAmount: levies.nhis,
-        getfundAmount: levies.getfund,
-        totalAmount: levies.gross,
-        balanceDue: levies.gross,
-        journalEntryNumber: glResult.entryNumber,
-      };
-
-      if (idempotencyKey) {
-        saveIdempotentResponse(idempotencyKey, 201, successPayload);
-      }
-
-      return NextResponse.json(successPayload, { status: 201 });
-    } catch (err) {
-      await tx.rollback();
-      throw err;
-    }
-  } catch (err: any) {
-    if (err instanceof ClosedPeriodError) {
       return NextResponse.json(
-        { status: 'ERROR', code: 'CLOSED_PERIOD_ERROR', message: err.message },
-        { status: 409 }
+        {
+          status: 'SUCCESS',
+          invoiceId,
+          invoiceNumber,
+          subTotal: levies.net,
+          vatAmount: levies.vat,
+          nhisAmount: levies.nhis,
+          getfundAmount: levies.getfund,
+          totalAmount: levies.gross,
+          balanceDue: levies.gross,
+          journalEntryNumber,
+        },
+        { status: 201 }
       );
+    } catch (err) {
+      return errorResponse(err, 'POST /api/v1/invoices');
     }
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  });
 }

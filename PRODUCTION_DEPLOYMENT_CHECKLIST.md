@@ -69,7 +69,7 @@
 - [ ] **Run Migration Script**
   ```powershell
   cd C:\projects\gpcl-finance-service
-  node scripts/deploy-migrations.js
+  npm run migrate
   ```
   Expected output:
   ```
@@ -128,7 +128,7 @@
 
 - [ ] **Verify Application Started**
   - Wait 10 seconds for startup
-  - Test endpoint: `http://10.100.0.20:3006/api/v1/auth/me` (should return 401 without token)
+  - Test endpoint: `http://10.100.0.20:3006/api/v1/health` (should return 200 {"status":"ok"})
   - Check application logs for errors
 
 ### Phase 4: Post-Deployment Verification (REQUIRED)
@@ -138,7 +138,7 @@
   ```bash
   curl -X POST http://10.100.0.20:3006/api/v1/auth/login \
     -H "Content-Type: application/json" \
-    -d '{"email":"admin@gpcl.com","password":"Password123!"}'
+    -d '{"email":"admin@gpcl.com","password":"<your admin password>"}'
   ```
   Expected: `status: "SUCCESS"` with JWT token
 
@@ -213,7 +213,7 @@ npm start
 - `.env.example` - Replaced hardcoded secrets with placeholders
 
 ### Deployment Tools
-- `scripts/deploy-migrations.js` - Automated migration runner with backup and verification
+- `scripts/migrate.js` - Automated migration runner with backup and verification
 
 ---
 

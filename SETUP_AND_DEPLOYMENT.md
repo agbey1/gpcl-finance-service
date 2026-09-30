@@ -1,64 +1,77 @@
 # GPCL Finance Service - Setup & Windows PM2 Deployment Guide
 
 ## 1. Prerequisites
-- **Node.js**: v20.x or higher
-- **PM2**: Global PM2 process manager installed on Windows Server (`npm install -g pm2`)
-- **Database**: Microsoft SQL Server 2019+ or Azure SQL DB
+- **Node.js** 20.9 or later
+- **PM2** installed globally on the Windows server (`npm install -g pm2`)
+- **Microsoft SQL Server** 2019+ and a dedicated SQL login for the application
+  (`db_datareader` + `db_datawriter`, plus DDL rights only while running migrations). Do not use `sa`.
+- HTTPS in front of the service (IIS ARR / nginx). Session cookies are `Secure` by default.
 
----
-
-## 2. Environment Configuration (`.env.local`)
-Create a `.env.local` file in the root directory on the production server (refer to `.env.example`):
+## 2. Configuration
+Copy `.env.example` to `.env` in the application directory and fill it in. Never commit it.
 
 ```ini
 NODE_ENV=production
 PORT=3006
-
-# Cryptographic Security
-JWT_SECRET=generate-a-secure-random-32-character-secret-key-here!
-
-# Microsoft SQL Server Database Credentials
-SQLSERVER_HOST=10.100.0.12
+JWT_SECRET=<48+ random characters: node -e "console.log(require('crypto').randomBytes(48).toString('base64'))">
+SQLSERVER_HOST=<sql server host>
 SQLSERVER_PORT=1433
-SQLSERVER_DATABASE=gpcl_finance_db
-SQLSERVER_USER=sa
-SQLSERVER_PASSWORD=ProductionPassword123!
-SQLSERVER_ENCRYPT=false
-SQLSERVER_TRUST=true
+SQLSERVER_DATABASE=GPCLFinanceResource
+SQLSERVER_USER=gpcl_finance_app
+SQLSERVER_PASSWORD=<password>
+SQLSERVER_ENCRYPT=true
+SQLSERVER_TRUST=false        # true only for a self-signed SQL Server certificate
+TRUST_PROXY=true             # when behind IIS/nginx that sets X-Forwarded-For
 ```
 
----
+The application validates this on the first request and refuses to run with missing
+or weak values.
 
-## 3. Database Migrations
-Run the SQL database schema migration before starting the application:
+## 3. Database migrations
+Back up the database first. Then:
 
 ```cmd
-npx ts-node scripts/migrate.ts
+npm run migrate:status
+npm run migrate
 ```
-Or execute [`scripts/migrations/001_initial_schema.sql`](file:///c:/projects/gpcl-finance-service/scripts/migrations/001_initial_schema.sql) directly in SQL Server Management Studio (SSMS).
 
----
+Migrations are idempotent and recorded in `dbo.SchemaMigrations`. Each one runs in a transaction.
 
-## 4. Deploying with PM2 on Windows Server
+Migration `009` **disables `admin@gpcl.com` if it still has the published default password**.
+Create or restore an administrator with:
 
-1. **Unzip** the deployment archive into `C:\webhost\gpcl-finance-service`.
-2. Ensure `.env.local` is present in the application root directory.
-3. Open PowerShell or Command Prompt as Administrator and run:
-   ```cmd
-   deploy-windows.bat
-   ```
-4. Or execute manually:
-   ```cmd
-   npm install --omit=dev
-   npm run build
-   pm2 start ecosystem.config.js
-   pm2 save
-   ```
+```cmd
+npm run create-admin -- --email finance.admin@gpcl.com.gh --name "Finance Administrator"
+```
 
----
+## 4. Deploy with PM2
+From the application directory, as Administrator:
 
-## 5. Verification & Monitoring
-- **Process Status**: `pm2 status`
-- **Application Logs**: `pm2 logs gpcl-finance-service`
-- **Persistent Disk Logs**: Check `C:\webhost\gpcl-finance-service\logs\app.log` and `error.log`.
-- **Health & Health Metric Endpoint**: `http://localhost:3006/api/v1/auth/me`
+```cmd
+deploy-windows.bat
+```
+
+This runs `npm ci`, type-check, tests, `next build`, migrations and `npm prune --omit=dev`,
+then restarts the `gpcl-finance-service` PM2 process on port 3006.
+
+## 5. Verification & monitoring
+- Health: `curl http://localhost:3006/api/v1/health` returns `200 {"status":"ok"}` (`503` if the database is unreachable)
+- Unauthenticated API call: `curl http://localhost:3006/api/v1/auth/me` returns `401`
+- Process: `pm2 status`, logs: `pm2 logs gpcl-finance-service` (JSON lines on stdout/stderr)
+- Optional file logs: set `LOG_TO_FILE=true` to also write `logs\app.log`, `error.log`, `audit.log`
+
+## 6. Upgrading from releases before the production-hardening update
+- **SQL connections now default to encrypted with certificate verification** (`SQLSERVER_ENCRYPT=true`,
+  `SQLSERVER_TRUST=false`). If the SQL Server has no trusted TLS certificate, set `SQLSERVER_TRUST=true`
+  explicitly (or install a certificate) before upgrading, or the service cannot connect.
+- `JWT_SECRET` is now required (32+ characters); the built-in fallback secret is gone.
+- All existing sessions become invalid (token signing now uses standard HMAC-SHA256). Users sign in again.
+- Run `npm run migrate` to add the new permissions (`admin.users.manage`, `finance.invoices.void`,
+  `accounting.journal.view`, `accounting.accounts.*`) and the `InvoiceLines` table.
+- User administration now requires `admin.users.manage` (ADMIN / SUPER_ADMIN have it by role).
+- Payment method `MOMO` is now `MOBILE_MONEY`. The API rejects unknown methods.
+- Voiding requires a reason and `finance.invoices.void`. It is refused once an invoice has payments or credits.
+- Manual journals can no longer post to control accounts (1100 AR, 2001 AP, 1201/1202 inventory).
+- Bank reconciliation now uses the real `BankAccounts` IDs. It previously sent GL codes and could not find any account.
+- The browser no longer keeps the session token in `localStorage`; it relies on the `httpOnly` cookie.
+

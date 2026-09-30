@@ -1,12 +1,16 @@
 export interface IdempotencyRecord {
   key: string;
   responseStatus: number;
-  responseBody: any;
+  responseBody: unknown;
   createdAt: number;
 }
 
 // In-memory cache with expiration for idempotency key deduplication
+// Process-local: correct for a single instance (the supported deployment). Running
+// several replicas requires moving this to a shared store such as the database.
 const idempotencyStore = new Map<string, IdempotencyRecord>();
+const inFlight = new Set<string>();
+const MAX_ENTRIES = 50_000;
 const EXPIRY_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 Hours
 
 // Periodic automated cleanup of expired idempotency keys
@@ -50,9 +54,14 @@ export function getIdempotentResponse(key: string): IdempotencyRecord | null {
 /**
  * Stores a processed response payload against an Idempotency-Key
  */
-export function saveIdempotentResponse(key: string, responseStatus: number, responseBody: any): void {
+export function saveIdempotentResponse(key: string, responseStatus: number, responseBody: unknown): void {
   if (!key || !key.trim()) return;
   const normalizedKey = normalizeIdempotencyKey(key);
+  if (idempotencyStore.size >= MAX_ENTRIES) {
+    // Evict the oldest entry (Map preserves insertion order) to bound memory.
+    const oldest = idempotencyStore.keys().next().value;
+    if (oldest !== undefined) idempotencyStore.delete(oldest);
+  }
   idempotencyStore.set(normalizedKey, {
     key: normalizedKey,
     responseStatus,
@@ -66,4 +75,17 @@ export function saveIdempotentResponse(key: string, responseStatus: number, resp
  */
 export function clearIdempotencyStore(): void {
   idempotencyStore.clear();
+  inFlight.clear();
+}
+
+/** Marks a key as being processed. Returns false if it already is. */
+export function reserveIdempotencyKey(key: string): boolean {
+  const k = normalizeIdempotencyKey(key);
+  if (inFlight.has(k)) return false;
+  inFlight.add(k);
+  return true;
+}
+
+export function releaseIdempotencyKey(key: string): void {
+  inFlight.delete(normalizeIdempotencyKey(key));
 }

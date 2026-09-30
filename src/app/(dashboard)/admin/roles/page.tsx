@@ -66,16 +66,10 @@ export default function RolesPermissionsPage() {
 
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  const fetchRoles = async () => {
+  async function fetchRoles() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch('/api/v1/roles', {
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
 
       if (response.ok) {
@@ -105,6 +99,12 @@ export default function RolesPermissionsPage() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchRoles();
+  }, []);
+
   const handleRoleSelect = (role: Role) => {
     setSelectedRole(role);
     setActivePermissions(role.permissions);
@@ -122,11 +122,9 @@ export default function RolesPermissionsPage() {
     if (!selectedRole) return;
     setSaving(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch('/api/v1/roles', {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${token || ''}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -162,11 +160,9 @@ export default function RolesPermissionsPage() {
 
     setCreating(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch('/api/v1/roles', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token || ''}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -210,11 +206,9 @@ export default function RolesPermissionsPage() {
 
     setUpdating(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch(`/api/v1/roles/${editingRole.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${token || ''}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -249,10 +243,8 @@ export default function RolesPermissionsPage() {
 
     setDeleting(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch(`/api/v1/roles/${deletingRole.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
 
       if (response.ok) {
@@ -404,7 +396,7 @@ export default function RolesPermissionsPage() {
           <div className="card" style={{ width: '90%', maxWidth: '420px', padding: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#dc2626', marginBottom: '12px' }}>Delete Custom Role</h2>
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Are you sure you want to delete the custom role <strong>"{deletingRole.name}"</strong>? This action cannot be undone.
+              Are you sure you want to delete the custom role <strong>&ldquo;{deletingRole.name}&rdquo;</strong>? This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting}>Cancel</button>

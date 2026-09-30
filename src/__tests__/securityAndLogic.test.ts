@@ -1,3 +1,4 @@
+import { authHeader } from '../test-utils/auth';
 import { NextRequest } from 'next/server';
 import { validateApiAuth } from '../lib/apiAuth';
 import { POST as createInvoice } from '../app/api/v1/invoices/route';
@@ -31,7 +32,7 @@ describe('Security Authorization & Business Logic Validation', () => {
   it('should reject invoice creation when dueDate is earlier than invoiceDate (400)', async () => {
     const req = new NextRequest('http://localhost:3000/api/v1/invoices', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({
         clientId: 1,
         invoiceDate: '2026-09-10',
@@ -50,7 +51,7 @@ describe('Security Authorization & Business Logic Validation', () => {
   it('should allow period close force option when user is Admin', async () => {
     const req = new NextRequest('http://localhost:3000/api/v1/accounting/periods/close', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({
         year: 2026,
         periodNumber: 1,

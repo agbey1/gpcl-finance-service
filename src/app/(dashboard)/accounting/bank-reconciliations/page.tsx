@@ -13,13 +13,18 @@ interface StatementTx {
   matchedPaymentRef: string;
 }
 
-const bankAccountMap: Record<string, number> = {
-  'GCB Bank - Operating Account': 1002,
-  'Ecobank - Operational Account': 1003,
-};
+interface BankAccount {
+  Id: number;
+  AccountName: string;
+  AccountNumber: string;
+  BankName: string;
+  GLAccountCode: string;
+  GLBalance: number;
+}
 
 export default function BankReconciliationsPage() {
-  const [selectedBank, setSelectedBank] = useState('GCB Bank - Operating Account');
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [bankAccountId, setBankAccountId] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<StatementTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -27,18 +32,25 @@ export default function BankReconciliationsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
 
-  const bankAccountId = bankAccountMap[selectedBank] || 1002;
+  const selectedBank = bankAccounts.find((b) => b.Id === bankAccountId)?.AccountName ?? '';
 
   useEffect(() => {
-    fetchTransactions();
-  }, [selectedBank]);
+    fetch('/api/v1/reconciliation/bank-accounts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const list: BankAccount[] = d?.bankAccounts ?? [];
+        setBankAccounts(list);
+        if (list[0]) setBankAccountId(list[0].Id);
+        else setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-  const fetchTransactions = async () => {
+  async function fetchTransactions() {
+    if (!bankAccountId) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const res = await fetch(`/api/v1/reconciliation/bank-accounts/${bankAccountId}/transactions`, {
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -50,6 +62,13 @@ export default function BankReconciliationsPage() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankAccountId]);
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -59,13 +78,11 @@ export default function BankReconciliationsPage() {
 
     setUploading(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const formData = new FormData();
       formData.append('file', selectedFile);
 
       const res = await fetch(`/api/v1/reconciliation/bank-accounts/${bankAccountId}/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
         body: formData,
       });
 
@@ -87,17 +104,20 @@ export default function BankReconciliationsPage() {
   };
 
   const handleResolveVariance = async (id: number) => {
+    const varianceReason = prompt('Reason for clearing this statement line (e.g. bank charge, timing difference):');
+    if (!varianceReason || varianceReason.trim().length < 3) return;
     try {
-      const token = localStorage.getItem('gpcl_token');
       const res = await fetch(`/api/v1/reconciliation/transactions/${id}/resolve`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ varianceReason: varianceReason.trim() }),
       });
 
       if (res.ok) {
         setTransactions(transactions.map(t => t.id === id ? { ...t, status: 'CLEARED', matchedPaymentRef: 'VARIANCE-RESOLVED' } : t));
       } else {
-        alert('Failed to resolve variance');
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || 'Failed to resolve variance');
       }
     } catch (err) {
       console.error('Error resolving variance:', err);
@@ -137,48 +157,32 @@ export default function BankReconciliationsPage() {
       )}
 
       {/* Account Select Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
-        <div
-          className="card"
-          style={{
-            borderColor: selectedBank === 'GCB Bank - Operating Account' ? 'var(--accent-primary)' : 'var(--border-color)',
-            cursor: 'pointer',
-          }}
-          onClick={() => setSelectedBank('GCB Bank - Operating Account')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>ACCOUNT 1002</p>
-              <h3 style={{ fontSize: '18px', marginTop: '2px' }}>GCB Bank - Operating Account</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Acc #: 114100984210</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>GL Balance</p>
-              <p style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>GHS 185,400.00</p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="card"
-          style={{
-            borderColor: selectedBank === 'Ecobank - Operational Account' ? 'var(--accent-primary)' : 'var(--border-color)',
-            cursor: 'pointer',
-          }}
-          onClick={() => setSelectedBank('Ecobank - Operational Account')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>ACCOUNT 1003</p>
-              <h3 style={{ fontSize: '18px', marginTop: '2px' }}>Ecobank - Operational Account</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Acc #: 144100298319</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>GL Balance</p>
-              <p style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>GHS 92,100.00</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+        {bankAccounts.length === 0 && !loading && (
+          <div className="card"><p style={{ color: 'var(--text-muted)' }}>No active bank accounts are set up.</p></div>
+        )}
+        {bankAccounts.map((b) => (
+          <div
+            key={b.Id}
+            className="card"
+            style={{ borderColor: bankAccountId === b.Id ? 'var(--accent-primary)' : 'var(--border-color)', cursor: 'pointer' }}
+            onClick={() => setBankAccountId(b.Id)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>GL ACCOUNT {b.GLAccountCode}</p>
+                <h3 style={{ fontSize: '18px', marginTop: '2px' }}>{b.AccountName}</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>{b.BankName} · Acc #: {b.AccountNumber}</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>GL Balance</p>
+                <p style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>
+                  GHS {Number(b.GLBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* Reconciliation Matching Workbench */}
@@ -262,12 +266,13 @@ export default function BankReconciliationsPage() {
               <div>
                 <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Select Target Bank Account</label>
                 <select
-                  value={selectedBank}
-                  onChange={e => setSelectedBank(e.target.value)}
+                  value={bankAccountId ?? ''}
+                  onChange={e => setBankAccountId(Number(e.target.value))}
                   style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                 >
-                  <option value="GCB Bank - Operating Account">GCB Bank - Operating Account (1002)</option>
-                  <option value="Ecobank - Operational Account">Ecobank - Operational Account (1003)</option>
+                  {bankAccounts.map((b) => (
+                    <option key={b.Id} value={b.Id}>{b.AccountName} ({b.GLAccountCode})</option>
+                  ))}
                 </select>
               </div>
 

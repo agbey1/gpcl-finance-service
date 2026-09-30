@@ -13,7 +13,7 @@ describe('Idempotency Key & Authorization Verification', () => {
     const cached = getIdempotentResponse(testKey);
     expect(cached).not.toBeNull();
     expect(cached?.responseStatus).toBe(201);
-    expect(cached?.responseBody.invoiceNumber).toBe('INV-2026-000042');
+    expect((cached?.responseBody as { invoiceNumber: string }).invoiceNumber).toBe('INV-2026-000042');
   });
 
   it('should return null for unknown idempotency key', () => {

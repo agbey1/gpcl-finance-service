@@ -31,7 +31,7 @@ describe('Auth Security Module', () => {
   });
 
   it('should reject expired JWT token', () => {
-    const expiredToken = signJwt(sampleUser, -10); // Expired 10 seconds ago
+    const expiredToken = signJwt(sampleUser, -120); // Expired 2 minutes ago (beyond clock-skew leeway)
     const verified = verifyJwt(expiredToken);
     expect(verified).toBeNull();
   });

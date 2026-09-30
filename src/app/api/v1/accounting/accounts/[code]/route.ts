@@ -1,6 +1,7 @@
+import { logAudit } from '@/lib/auditLog';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 export async function GET(
   req: NextRequest,
@@ -28,7 +29,7 @@ export async function GET(
 
     return NextResponse.json({ status: 'SUCCESS', account: result.recordset[0] }, { status: 200 });
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/accounting/accounts/[code]');
   }
 }
 
@@ -43,8 +44,10 @@ export async function PATCH(
 
     const resolvedParams = await params;
     const accountCode = resolvedParams.code;
-    const body = await req.json();
-    const { accountName, category, isActive } = body;
+    const body = await req.json().catch(() => ({}));
+    const accountName = typeof body.accountName === 'string' && body.accountName.trim().length >= 2 ? body.accountName.trim().slice(0, 255) : undefined;
+    const category = typeof body.category === 'string' ? body.category.trim().slice(0, 100) : undefined;
+    const isActive = typeof body.isActive === 'boolean' ? body.isActive : undefined;
 
     const db = await getDb();
     const checkRes = await db.request()
@@ -69,6 +72,15 @@ export async function PATCH(
         WHERE AccountCode = @code
       `);
 
+    await logAudit({
+      entityType: 'ACCOUNT',
+      entityId: accountCode,
+      action: 'UPDATE',
+      userId: session!.userId,
+      newValue: { accountName, category, isActive },
+      description: `Account ${accountCode} updated`,
+    });
+
     return NextResponse.json(
       {
         status: 'SUCCESS',
@@ -78,6 +90,6 @@ export async function PATCH(
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/accounting/accounts/[code]');
   }
 }

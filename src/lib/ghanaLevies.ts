@@ -1,3 +1,5 @@
+import { toCents } from './decimalPrecision';
+
 /**
  * Ghana statutory levies calculation engine for standalone gpcl-finance-service.
  *
@@ -31,4 +33,21 @@ export function computeLevies(netSellingPrice: number): LevyBreakdown {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * Splits a tax-inclusive credit amount in the same proportions as the invoice
+ * it credits, so revenue and each levy liability are reduced consistently.
+ * Levies are rounded individually; revenue takes the rounding remainder.
+ */
+export function splitCreditAmount(
+  amountCents: number,
+  invoice: { TotalAmount: number; VatAmount: number; NhisAmount: number; GetfundAmount: number },
+) {
+  const totalCents = toCents(Number(invoice.TotalAmount));
+  const share = (x: number) => (totalCents > 0 ? Math.round((amountCents * toCents(Number(x))) / totalCents) : 0);
+  const vat = share(invoice.VatAmount);
+  const nhis = share(invoice.NhisAmount);
+  const getfund = share(invoice.GetfundAmount);
+  return { net: amountCents - vat - nhis - getfund, vat, nhis, getfund };
 }

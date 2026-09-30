@@ -13,3 +13,8 @@ export function sumMonetary(values: number[], decimals = 2): number {
 export function validateGLBalance(debitTotal: number, creditTotal: number): boolean {
   return Math.abs(debitTotal - creditTotal) <= GL_BALANCE_TOLERANCE;
 }
+
+/** Converts a monetary amount to integer cents so balance checks are exact. */
+export function toCents(amount: number): number {
+  return Math.round((amount + Number.EPSILON) * 100);
+}

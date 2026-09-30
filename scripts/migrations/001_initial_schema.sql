@@ -157,11 +157,8 @@ BEGIN
 END;
 
 -- 10. Default Seed Data
-IF NOT EXISTS (SELECT * FROM Users WHERE Email = 'admin@gpcl.com')
-BEGIN
-    INSERT INTO Users (Email, Name, PasswordHash, Role, IsActive) VALUES
-    ('admin@gpcl.com', 'Super Administrator', '$2b$12$8s4Mq2jHRSa3rDjhkAKJuO0pHqk2yb5Oi.EOciq.dMgtZ7d8iqY/u', 'SUPER_ADMIN', 1);
-END;
+-- No default user is seeded: create the first administrator with
+--   npm run create-admin -- --email you@example.com --name "Your Name"
 
 IF NOT EXISTS (SELECT * FROM ChartOfAccounts WHERE AccountCode = '1001')
 BEGIN

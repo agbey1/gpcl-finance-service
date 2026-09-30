@@ -26,16 +26,10 @@ export default function SettingsPage() {
   const [autoPostGrn, setAutoPostGrn] = useState(true);
   const [allowOverdue, setAllowOverdue] = useState(false);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  async function fetchSettings() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const res = await fetch('/api/v1/settings', {
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
 
       if (res.ok) {
@@ -61,12 +55,17 @@ export default function SettingsPage() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSettings();
+  }, []);
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setSaving(true);
 
     try {
-      const token = localStorage.getItem('gpcl_token');
       const payload = {
         companyName,
         tin,
@@ -85,7 +84,6 @@ export default function SettingsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
         },
         body: JSON.stringify(payload),
       });

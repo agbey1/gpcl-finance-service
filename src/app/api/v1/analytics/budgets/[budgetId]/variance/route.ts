@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { getBudgetWithVariance } from '@/lib/budgeting';
 
 export async function GET(
@@ -52,6 +52,6 @@ export async function GET(
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/analytics/budgets/[budgetId]/variance');
   }
 }

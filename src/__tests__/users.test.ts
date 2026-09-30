@@ -1,3 +1,4 @@
+import { authHeader } from '../test-utils/auth';
 import { GET as getUsers, POST as createUser } from '../app/api/v1/users/route';
 import { GET as getUserById, PATCH as updateUser, DELETE as deleteUser } from '../app/api/v1/users/[id]/route';
 import { createUserSchema, updateUserSchema } from '../lib/validation';
@@ -37,7 +38,7 @@ describe('User Account & Password Management API', () => {
   it('should hash password and create new user via POST /api/v1/users', async () => {
     const req = new NextRequest('http://localhost:3000/api/v1/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({
         name: 'Emmanuel Osei',
         email: 'eosei@gpcl.com',
@@ -60,6 +61,7 @@ describe('User Account & Password Management API', () => {
   it('should fetch user list via GET /api/v1/users', async () => {
     const req = new NextRequest('http://localhost:3000/api/v1/users', {
       method: 'GET',
+      headers: authHeader(),
     });
 
     const res = await getUsers(req);
@@ -75,7 +77,7 @@ describe('User Account & Password Management API', () => {
     const params = Promise.resolve({ id: '1' });
     const patchReq = new NextRequest('http://localhost:3000/api/v1/users/1', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({
         name: 'Finance Super Administrator',
         password: 'ResetPassword2026!',

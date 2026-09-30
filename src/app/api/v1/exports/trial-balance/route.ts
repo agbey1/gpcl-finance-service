@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { accountBalances } from '@/lib/ledger';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { generateExcel, generateCSV, prepareGLExport } from '@/lib/dataExport';
 
 export async function GET(req: NextRequest) {
@@ -11,23 +11,10 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const format = url.searchParams.get('format') || 'xlsx'; // xlsx or csv
 
-    const db = await getDb();
+    const asOf = new URL(req.url).searchParams.get('asOf');
+    const rows = await accountBalances({ to: asOf && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? asOf : undefined });
 
-    const result = await db.request().query(`
-      SELECT
-        coa.AccountCode,
-        coa.AccountName,
-        coa.AccountType,
-        ISNULL(SUM(jel.Debit), 0) AS TotalDebit,
-        ISNULL(SUM(jel.Credit), 0) AS TotalCredit
-      FROM ChartOfAccounts coa
-      LEFT JOIN JournalEntryLines jel ON coa.Id = jel.AccountId
-      LEFT JOIN JournalEntries je ON jel.JournalEntryId = je.Id AND je.Status = 'POSTED'
-      GROUP BY coa.AccountCode, coa.AccountName, coa.AccountType
-      ORDER BY coa.AccountCode ASC
-    `);
-
-    const { columns, data, totals } = prepareGLExport(result.recordset);
+    const { columns, data, totals } = prepareGLExport(rows);
     const timestamp = new Date().toISOString().slice(0, 10);
     const filename = `trial-balance-${timestamp}`;
 
@@ -59,6 +46,6 @@ export async function GET(req: NextRequest) {
       });
     }
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/exports/trial-balance');
   }
 }

@@ -1,212 +1,176 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getDb, sql } from '@/lib/db';
-import { postJournalInTx, type JournalLine, ClosedPeriodError } from '@/lib/accounting';
-import { getIdempotentResponse, saveIdempotentResponse } from '@/lib/idempotency';
+import { nextDocumentNumber, postJournalInTx, toCents, type JournalLine } from '@/lib/accounting';
 import { validateApiAuth } from '@/lib/apiAuth';
+import { ApiError, errorResponse, parseBody, withIdempotency } from '@/lib/apiErrors';
+import { businessDate, parseBusinessDate } from '@/lib/dates';
 import { logAudit } from '@/lib/auditLog';
 
+const PAYMENT_METHODS = ['BANK_TRANSFER', 'CASH', 'CHEQUE', 'MOBILE_MONEY'] as const;
+
+const createPaymentSchema = z.object({
+  clientId: z.number().int().positive(),
+  invoiceId: z.number().int().positive().optional().nullable(),
+  amount: z.number().finite().positive().max(1e12),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  reference: z.string().trim().max(100).optional().nullable(),
+  bankAccountId: z.number().int().positive().optional().nullable(),
+  paymentDate: businessDate.optional(),
+});
+
 export async function POST(req: NextRequest) {
-  try {
-    // 1. Authorization & Permission check
-    const { session, errorResponse } = validateApiAuth(req, 'finance.payments.create');
-    if (errorResponse) return errorResponse;
+  const { session, errorResponse: authError } = validateApiAuth(req, 'finance.payments.create');
+  if (authError || !session) return authError!;
 
-    // 2. Idempotency Key validation
-    const idempotencyKey =
-      req.headers.get('idempotency-key') ||
-      req.headers.get('x-idempotency-key');
-
-    if (idempotencyKey) {
-      const cached = getIdempotentResponse(idempotencyKey);
-      if (cached) {
-        return NextResponse.json(cached.responseBody, { status: cached.responseStatus });
-      }
-    }
-
-    const body = await req.json();
-    const { clientId, paymentDate, amount, paymentMethod, reference, bankAccountId, invoiceId, postedBy } = body;
-
-    if (!clientId || !amount || amount <= 0 || !paymentMethod) {
-      return NextResponse.json(
-        { status: 'ERROR', message: 'clientId, amount > 0, and paymentMethod are required.' },
-        { status: 400 }
-      );
-    }
-
-    const payDate = paymentDate ? new Date(paymentDate) : new Date();
-    const db = await getDb();
-    const tx = new sql.Transaction(db);
-    await tx.begin();
-
+  return withIdempotency(req, 'payments.create', session.userId, async () => {
     try {
-      let overpaymentCreditNoteId: number | null = null;
+      const input = await parseBody(req, createPaymentSchema);
+      const amountCents = toCents(input.amount);
+      if (amountCents <= 0) throw new ApiError(400, 'Payment amount must be at least 0.01.');
+      const amount = amountCents / 100;
+      const payDate = input.paymentDate ? parseBusinessDate(input.paymentDate) : new Date();
+      const invoiceId = input.invoiceId ?? null;
+
+      const db = await getDb();
+      const clientRes = await db.request().input('clientId', input.clientId)
+        .query('SELECT Id FROM Clients WHERE Id = @clientId');
+      if (!clientRes.recordset.length) throw new ApiError(404, 'Client not found.');
+
+      const tx = new sql.Transaction(db);
+      await tx.begin();
+      let paymentId: number;
+      let paymentNumber: string;
+      let journalEntryNumber: string;
       let excessCreditAmount = 0;
-
-      // 3. Invoice Concurrency & Status Validation with Row Lock
-      if (invoiceId) {
-        const invRes = await new sql.Request(tx)
-          .input('invId', invoiceId)
-          .query(`
-            SELECT Id, InvoiceNumber, TotalAmount, BalanceDue, Status
-            FROM Invoices WITH (UPDLOCK)
-            WHERE Id = @invId
-          `);
-
-        if (!invRes.recordset.length) {
-          await tx.rollback();
-          return NextResponse.json({ status: 'ERROR', message: 'Invoice not found' }, { status: 404 });
-        }
-
-        const invoice = invRes.recordset[0];
-
-        if (invoice.Status === 'PAID') {
-          await tx.rollback();
-          return NextResponse.json(
-            { status: 'ERROR', message: 'Invoice is already fully paid. Cannot apply additional payments.' },
-            { status: 409 }
-          );
-        }
-
-        if (invoice.Status === 'VOID') {
-          await tx.rollback();
-          return NextResponse.json(
-            { status: 'ERROR', message: 'Invoice is voided. Cannot process payment on voided invoices.' },
-            { status: 409 }
-          );
-        }
-
-        const balanceDue = Number(invoice.BalanceDue);
-        if (amount > balanceDue) {
-          excessCreditAmount = amount - balanceDue;
-
-          // Automatically record excess payment as an OPEN Credit Note
-          const cnCntRes = await new sql.Request(tx).query("SELECT COUNT(*) AS cnt FROM CreditNotes");
-          const seq = String((cnCntRes.recordset[0]?.cnt || 0) + 1).padStart(6, '0');
-          const year = new Date().getFullYear();
-          const creditNoteNumber = `CN-OVERPAY-${year}-${seq}`;
-
-          const cnRes = await new sql.Request(tx)
-            .input('creditNoteNumber', creditNoteNumber)
-            .input('clientId', clientId)
-            .input('invoiceId', invoiceId)
-            .input('creditNoteDate', payDate)
-            .input('amount', excessCreditAmount)
-            .input('amountApplied', 0)
-            .input('reason', `Overpayment credit on invoice ${invoice.InvoiceNumber}`)
-            .input('status', 'OPEN')
+      let overpaymentCreditNoteId: number | null = null;
+      try {
+        if (invoiceId) {
+          const invRes = await new sql.Request(tx)
+            .input('invId', invoiceId)
             .query(`
-              INSERT INTO CreditNotes
-                (CreditNoteNumber, ClientId, InvoiceId, CreditNoteDate, Amount, AmountApplied, Reason, Status)
-              OUTPUT INSERTED.Id
-              VALUES
-                (@creditNoteNumber, @clientId, @invoiceId, @creditNoteDate, @amount, @amountApplied, @reason, @status)
+              SELECT Id, InvoiceNumber, ClientId, BalanceDue, Status
+              FROM Invoices WITH (UPDLOCK, ROWLOCK)
+              WHERE Id = @invId
             `);
-          overpaymentCreditNoteId = cnRes.recordset[0].Id;
+          const invoice = invRes.recordset[0];
+          if (!invoice) throw new ApiError(404, 'Invoice not found.');
+          if (invoice.ClientId !== input.clientId) {
+            throw new ApiError(400, 'Invoice does not belong to the specified client.');
+          }
+          if (invoice.Status === 'VOID') {
+            throw new ApiError(409, 'Invoice is voided. Cannot process payment on voided invoices.');
+          }
+          const balanceCents = toCents(Number(invoice.BalanceDue));
+          if (invoice.Status === 'PAID' || balanceCents <= 0) {
+            throw new ApiError(409, 'Invoice is already fully paid. Cannot apply additional payments.');
+          }
+
+          if (amountCents > balanceCents) {
+            // Record the excess as an open credit note for the client.
+            excessCreditAmount = (amountCents - balanceCents) / 100;
+            const creditNoteNumber = await nextDocumentNumber(tx, 'creditNote', 'CN-OVERPAY', payDate);
+            const cnRes = await new sql.Request(tx)
+              .input('creditNoteNumber', creditNoteNumber)
+              .input('clientId', input.clientId)
+              .input('invoiceId', invoiceId)
+              .input('creditNoteDate', payDate)
+              .input('amount', excessCreditAmount)
+              .input('reason', `Overpayment credit on invoice ${invoice.InvoiceNumber}`)
+              .query(`
+                INSERT INTO CreditNotes
+                  (CreditNoteNumber, ClientId, InvoiceId, CreditNoteDate, Amount, AmountApplied, Reason, Status)
+                OUTPUT INSERTED.Id
+                VALUES
+                  (@creditNoteNumber, @clientId, @invoiceId, @creditNoteDate, @amount, 0, @reason, 'OPEN')
+              `);
+            overpaymentCreditNoteId = cnRes.recordset[0].Id;
+          }
+
+          const newBalance = Math.max(0, balanceCents - amountCents) / 100;
+          await new sql.Request(tx)
+            .input('invId', invoiceId)
+            .input('balance', newBalance)
+            .input('status', newBalance === 0 ? 'PAID' : 'PARTIAL')
+            .query('UPDATE Invoices SET BalanceDue = @balance, Status = @status WHERE Id = @invId');
         }
 
-        // Update Invoice Balance & Status
-        await new sql.Request(tx)
-          .input('invId', invoiceId)
-          .input('amt', amount)
+        paymentNumber = await nextDocumentNumber(tx, 'payment', 'PAY', payDate);
+        const payRes = await new sql.Request(tx)
+          .input('paymentNumber', paymentNumber)
+          .input('clientId', input.clientId)
+          .input('invoiceId', invoiceId)
+          .input('paymentDate', payDate)
+          .input('amount', amount)
+          .input('paymentMethod', input.paymentMethod)
+          .input('reference', input.reference || null)
+          .input('bankAccountId', input.bankAccountId ?? null)
+          .input('recordedBy', session.userId)
           .query(`
-            UPDATE Invoices
-            SET BalanceDue = CASE WHEN BalanceDue - @amt < 0 THEN 0 ELSE BalanceDue - @amt END,
-                Status = CASE WHEN BalanceDue - @amt <= 0 THEN 'PAID' ELSE 'PARTIAL' END
-            WHERE Id = @invId
+            INSERT INTO Payments
+              (PaymentNumber, ClientId, InvoiceId, PaymentDate, Amount, PaymentMethod, Reference, BankAccountId, RecordedBy)
+            OUTPUT INSERTED.Id
+            VALUES
+              (@paymentNumber, @clientId, @invoiceId, @paymentDate, @amount, @paymentMethod, @reference, @bankAccountId, @recordedBy)
           `);
+        paymentId = payRes.recordset[0].Id;
+
+        // Debit Bank (1002) for transfers or banked receipts, otherwise Cash (1001);
+        // credit Trade Receivables (1100). Any overpayment leaves a credit balance
+        // on AR matching the open credit note.
+        const assetAccountCode = input.paymentMethod === 'BANK_TRANSFER' || input.bankAccountId ? '1002' : '1001';
+        const lines: JournalLine[] = [
+          { accountCode: assetAccountCode, description: `Payment Received: ${paymentNumber}`, debit: amount },
+          { accountCode: '1100', description: `AR Settlement: ${paymentNumber}`, credit: amount },
+        ];
+        const glResult = await postJournalInTx(tx, db, {
+          entryDate: payDate,
+          description: `Customer Payment ${paymentNumber}`,
+          reference: input.reference || paymentNumber,
+          sourceModule: 'PAYMENT',
+          sourceId: paymentId,
+          lines,
+          postedBy: session.userId,
+        });
+        journalEntryNumber = glResult.entryNumber;
+
+        await tx.commit();
+      } catch (err) {
+        await tx.rollback().catch(() => {});
+        throw err;
       }
 
-      // 4. Generate Next Payment Number
-      const cntRes = await new sql.Request(tx).query("SELECT COUNT(*) AS cnt FROM Payments");
-      const seq = String((cntRes.recordset[0]?.cnt || 0) + 1).padStart(6, '0');
-      const year = new Date().getFullYear();
-      const paymentNumber = `PAY-${year}-${seq}`;
-
-      // 5. Insert Payment Record
-      const payRes = await new sql.Request(tx)
-        .input('paymentNumber', paymentNumber)
-        .input('clientId', clientId)
-        .input('paymentDate', payDate)
-        .input('amount', amount)
-        .input('paymentMethod', paymentMethod)
-        .input('reference', reference ?? null)
-        .input('bankAccountId', bankAccountId ?? null)
-        .query(`
-          INSERT INTO Payments
-            (PaymentNumber, ClientId, PaymentDate, Amount, PaymentMethod, Reference, BankAccountId)
-          OUTPUT INSERTED.Id
-          VALUES
-            (@paymentNumber, @clientId, @paymentDate, @amount, @paymentMethod, @reference, @bankAccountId)
-        `);
-
-      const paymentId = payRes.recordset[0].Id;
-
-      // 6. Post GL Entry (Debit Cash/Bank, Credit Trade Receivables 1100)
-      const assetAccountCode = (paymentMethod === 'BANK_TRANSFER' || bankAccountId) ? '1002' : '1001';
-      const lines: JournalLine[] = [
-        { accountCode: assetAccountCode, description: `Payment Received: ${paymentNumber}`, debit: amount },
-        { accountCode: '1100', description: `AR Settlement: ${paymentNumber}`, credit: amount },
-      ];
-
-      const glResult = await postJournalInTx(tx, db, {
-        entryDate: payDate,
-        description: `Customer Payment ${paymentNumber}`,
-        reference: reference || paymentNumber,
-        sourceModule: 'PAYMENT',
-        sourceId: paymentId,
-        lines,
-        postedBy: session?.userId || postedBy || 1,
-      });
-
-      await tx.commit();
-
-      // Log audit trail
       await logAudit({
         entityType: 'PAYMENT',
         entityId: paymentId,
         action: 'POST',
-        userId: session?.userId || 1,
+        userId: session.userId,
         newValue: {
           paymentNumber,
-          clientId,
-          invoiceId: invoiceId || null,
+          clientId: input.clientId,
+          invoiceId,
           paymentDate: payDate.toISOString(),
           amount,
-          paymentMethod,
-          reference: reference || null,
+          paymentMethod: input.paymentMethod,
+          reference: input.reference || null,
         },
-        description: `Payment ${paymentNumber} recorded for client ID ${clientId}, amount ${amount}`,
+        description: `Payment ${paymentNumber} recorded for client ID ${input.clientId}, amount ${amount}`,
       });
 
-      const successPayload = {
-        status: 'SUCCESS',
-        paymentId,
-        paymentNumber,
-        amount,
-        excessCreditAmount: excessCreditAmount > 0 ? excessCreditAmount : 0,
-        overpaymentCreditNoteId,
-        journalEntryNumber: glResult.entryNumber,
-      };
-
-      if (idempotencyKey) {
-        saveIdempotentResponse(idempotencyKey, 201, successPayload);
-      }
-
-      return NextResponse.json(successPayload, { status: 201 });
-    } catch (err) {
-      await tx.rollback();
-      throw err;
-    }
-  } catch (err: any) {
-    if (err instanceof ClosedPeriodError) {
       return NextResponse.json(
-        { status: 'ERROR', code: 'CLOSED_PERIOD_ERROR', message: err.message },
-        { status: 409 }
+        {
+          status: 'SUCCESS',
+          paymentId,
+          paymentNumber,
+          amount,
+          excessCreditAmount,
+          overpaymentCreditNoteId,
+          journalEntryNumber,
+        },
+        { status: 201 }
       );
+    } catch (err) {
+      return errorResponse(err, 'POST /api/v1/payments');
     }
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  });
 }

@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getDb, sql } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 export type BudgetStatus = 'DRAFT' | 'APPROVED' | 'ACTIVE' | 'CLOSED';
@@ -34,10 +34,11 @@ export interface BudgetVariance {
  * Create a new budget
  */
 export async function createBudget(budget: BudgetData): Promise<{ budgetId: number; budgetName: string }> {
+  const db = await getDb();
+  const tx = new sql.Transaction(db);
+  await tx.begin();
   try {
-    const db = await getDb();
-
-    const result = await db.request()
+    const result = await new sql.Request(tx)
       .input('budgetName', budget.budgetName)
       .input('description', budget.description || null)
       .input('period', budget.period)
@@ -49,12 +50,10 @@ export async function createBudget(budget: BudgetData): Promise<{ budgetId: numb
         OUTPUT INSERTED.Id
         VALUES (@budgetName, @description, @period, @fiscalYear, @startPeriod, 'DRAFT', @createdBy, GETDATE(), GETDATE())
       `);
+    const budgetId: number = result.recordset[0].Id;
 
-    const budgetId = result.recordset[0].Id;
-
-    // Insert budget line items
     for (const lineItem of budget.lineItems) {
-      await db.request()
+      await new sql.Request(tx)
         .input('budgetId', budgetId)
         .input('accountCode', lineItem.accountCode)
         .input('budgetAmount', lineItem.budgetAmount)
@@ -65,10 +64,11 @@ export async function createBudget(budget: BudgetData): Promise<{ budgetId: numb
         `);
     }
 
+    await tx.commit();
     logger.info('Budget created', { budgetId, budgetName: budget.budgetName });
     return { budgetId, budgetName: budget.budgetName };
-  } catch (err: any) {
-    logger.error('Failed to create budget', { error: err.message });
+  } catch (err) {
+    await tx.rollback().catch(() => {});
     throw err;
   }
 }
@@ -77,56 +77,60 @@ export async function createBudget(budget: BudgetData): Promise<{ budgetId: numb
  * Calculate budget variance for a specific budget
  */
 export async function calculateBudgetVariance(budgetId: number): Promise<BudgetVariance[]> {
-  try {
-    const db = await getDb();
+  const db = await getDb();
 
-    const result = await db.request()
-      .input('budgetId', budgetId)
-      .query(`
-        SELECT
-          bli.AccountCode,
-          coa.AccountName,
-          bli.BudgetAmount,
-          ISNULL(SUM(jel.Debit - jel.Credit), 0) AS ActualAmount
-        FROM BudgetLineItems bli
-        INNER JOIN ChartOfAccounts coa ON bli.AccountCode = coa.AccountCode
-        LEFT JOIN JournalEntryLines jel ON coa.Id = jel.AccountId
-        LEFT JOIN JournalEntries e ON jel.JournalEntryId = e.Id AND e.Status = 'POSTED'
-        WHERE bli.BudgetId = @budgetId
-        GROUP BY bli.AccountCode, coa.AccountName, bli.BudgetAmount
-      `);
+  // Actuals are posted activity in the budget's fiscal year, in each account's
+  // natural direction (debit for assets/expenses, credit for revenue/liabilities/equity).
+  const result = await db.request()
+    .input('budgetId', budgetId)
+    .query(`
+      SELECT
+        bli.AccountCode,
+        coa.AccountName,
+        coa.AccountType,
+        SUM(bli.BudgetAmount) AS BudgetAmount,
+        ISNULL(MAX(act.Net), 0) AS NetDebit
+      FROM BudgetLineItems bli
+      INNER JOIN Budgets b ON b.Id = bli.BudgetId
+      INNER JOIN ChartOfAccounts coa ON bli.AccountCode = coa.AccountCode
+      OUTER APPLY (
+        SELECT SUM(jel.Debit - jel.Credit) AS Net
+        FROM JournalEntryLines jel
+        INNER JOIN JournalEntries e ON e.Id = jel.JournalEntryId
+        WHERE jel.AccountId = coa.Id
+          AND e.Status = 'POSTED'
+          AND e.EntryDate >= DATEFROMPARTS(b.FiscalYear, 1, 1)
+          AND e.EntryDate < DATEFROMPARTS(b.FiscalYear + 1, 1, 1)
+      ) act
+      WHERE bli.BudgetId = @budgetId
+      GROUP BY bli.AccountCode, coa.AccountName, coa.AccountType
+      ORDER BY bli.AccountCode
+    `);
 
-    return result.recordset.map((row: any) => {
-      const budgeted = Number(row.BudgetAmount);
-      const actual = Number(row.ActualAmount);
-      const variance = budgeted - actual;
-      const variancePercent = budgeted !== 0 ? (variance / budgeted) * 100 : 0;
+  return result.recordset.map((row: { AccountCode: string; AccountName: string; AccountType: string; BudgetAmount: number; NetDebit: number }) =>
+    budgetVarianceRow(row.AccountCode, row.AccountName, row.AccountType, Number(row.BudgetAmount), Number(row.NetDebit))
+  );
+}
 
-      // Determine status: For expense accounts (negative actual), unfavorable means higher actual
-      // For revenue accounts, unfavorable means lower actual
-      let status: 'FAVORABLE' | 'UNFAVORABLE' | 'ON_TRACK';
-      if (Math.abs(variancePercent) <= 5) {
-        status = 'ON_TRACK';
-      } else if (variancePercent > 0) {
-        status = 'FAVORABLE'; // Under budget
-      } else {
-        status = 'UNFAVORABLE'; // Over budget
-      }
+/** Classifies one budget line. Pure, so it is unit-tested directly. */
+export function budgetVarianceRow(
+  accountCode: string,
+  accountName: string,
+  accountType: string,
+  budgeted: number,
+  netDebit: number,
+): BudgetVariance {
+  const creditNatured = ['REVENUE', 'LIABILITY', 'EQUITY'].includes((accountType || '').toUpperCase());
+  const actual = Math.round((creditNatured ? -netDebit : netDebit) * 100) / 100;
+  const variance = Math.round((budgeted - actual) * 100) / 100;
+  const variancePercent = budgeted !== 0 ? (variance / budgeted) * 100 : 0;
 
-      return {
-        accountCode: row.AccountCode,
-        accountName: row.AccountName,
-        budgeted,
-        actual,
-        variance,
-        variancePercent,
-        status,
-      };
-    });
-  } catch (err: any) {
-    logger.error('Failed to calculate budget variance', { error: err.message });
-    return [];
-  }
+  let status: BudgetVariance['status'];
+  if (Math.abs(variancePercent) <= 5) status = 'ON_TRACK';
+  else if (creditNatured) status = actual > budgeted ? 'FAVORABLE' : 'UNFAVORABLE'; // more revenue is good
+  else status = actual < budgeted ? 'FAVORABLE' : 'UNFAVORABLE'; // less spend is good
+
+  return { accountCode, accountName, budgeted, actual, variance, variancePercent, status };
 }
 
 /**
@@ -167,9 +171,9 @@ export async function getBudgetWithVariance(budgetId: number): Promise<any> {
       totalBudget: variance.reduce((sum, v) => sum + v.budgeted, 0),
       totalActual: variance.reduce((sum, v) => sum + v.actual, 0),
     };
-  } catch (err: any) {
-    logger.error('Failed to get budget with variance', { error: err.message });
-    return null;
+  } catch (err) {
+    logger.error('Failed to get budget with variance', { error: err instanceof Error ? err.message : String(err) });
+    throw err;
   }
 }
 
@@ -223,8 +227,8 @@ export async function listBudgets(fiscalYear: number, limit: number = 50): Promi
       `);
 
     return result.recordset;
-  } catch (err: any) {
-    logger.error('Failed to list budgets', { error: err.message });
-    return [];
+  } catch (err) {
+    logger.error('Failed to list budgets', { error: err instanceof Error ? err.message : String(err) });
+    throw err;
   }
 }

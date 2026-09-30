@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { getDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import sql from 'mssql';
@@ -216,10 +216,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (err: any) {
     logger.error('Error creating role', { error: err.message });
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Failed to create role' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/roles');
   }
 }
 
@@ -268,9 +265,6 @@ export async function PUT(req: NextRequest) {
     });
   } catch (err: any) {
     logger.error('Error updating role permissions', { error: err.message });
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Failed to update permissions' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/roles');
   }
 }

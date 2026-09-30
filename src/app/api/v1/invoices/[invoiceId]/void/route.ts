@@ -1,104 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getDb, sql } from '@/lib/db';
-import { postJournalInTx, type JournalLine, ClosedPeriodError } from '@/lib/accounting';
+import { postJournalInTx, toCents, type JournalLine } from '@/lib/accounting';
 import { validateApiAuth } from '@/lib/apiAuth';
+import { ApiError, errorResponse } from '@/lib/apiErrors';
+import { businessDate, parseBusinessDate } from '@/lib/dates';
+import { logAudit } from '@/lib/auditLog';
+
+const voidSchema = z.object({
+  reason: z.string().trim().min(3, 'A reason is required to void an invoice.').max(400),
+  voidDate: businessDate.optional(),
+});
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
-  try {
-    // 1. Authorization check
-    const { session, errorResponse } = validateApiAuth(req, 'finance.invoices.create');
-    if (errorResponse) return errorResponse;
+  const { session, errorResponse: authError } = validateApiAuth(req, 'finance.invoices.void');
+  if (authError || !session) return authError!;
 
-    const resolvedParams = await params;
-    const invoiceId = parseInt(resolvedParams.invoiceId, 10);
-    if (isNaN(invoiceId)) {
-      return NextResponse.json({ status: 'ERROR', message: 'Invalid invoice ID' }, { status: 400 });
+  try {
+    const { invoiceId: rawId } = await params;
+    const invoiceId = Number(rawId);
+    if (!Number.isInteger(invoiceId) || invoiceId <= 0) {
+      throw new ApiError(400, 'Invalid invoice ID');
     }
 
     const body = await req.json().catch(() => ({}));
-    const { reason, voidDate } = body;
+    const { reason, voidDate } = voidSchema.parse(body);
+    const vDate = voidDate ? parseBusinessDate(voidDate) : new Date();
 
-    const vDate = voidDate ? new Date(voidDate) : new Date();
     const db = await getDb();
     const tx = new sql.Transaction(db);
     await tx.begin();
-
+    let invoice: {
+      InvoiceNumber: string; SubTotal: number; VatAmount: number; NhisAmount: number;
+      GetfundAmount: number; TotalAmount: number; BalanceDue: number; Status: string;
+    };
+    let reversingJournalEntry: string;
     try {
-      // 2. Fetch invoice with row lock
       const invRes = await new sql.Request(tx)
         .input('invId', invoiceId)
         .query(`
-          SELECT Id, InvoiceNumber, TotalAmount, Status, InvoiceDate
-          FROM Invoices WITH (UPDLOCK)
+          SELECT InvoiceNumber, SubTotal, VatAmount, NhisAmount, GetfundAmount, TotalAmount, BalanceDue, Status
+          FROM Invoices WITH (UPDLOCK, ROWLOCK)
           WHERE Id = @invId
         `);
+      invoice = invRes.recordset[0];
+      if (!invoice) throw new ApiError(404, 'Invoice not found');
+      if (invoice.Status === 'VOID') throw new ApiError(409, 'Invoice is already voided');
 
-      if (!invRes.recordset.length) {
-        await tx.rollback();
-        return NextResponse.json({ status: 'ERROR', message: 'Invoice not found' }, { status: 404 });
+      // Voiding reverses the whole invoice, which is only correct while nothing
+      // has been settled against it. Otherwise AR and cash would disagree.
+      if (toCents(Number(invoice.BalanceDue)) !== toCents(Number(invoice.TotalAmount))) {
+        throw new ApiError(
+          409,
+          'Invoice has payments or credit notes applied and cannot be voided. Issue a credit note instead.',
+          'INVOICE_HAS_SETTLEMENTS'
+        );
       }
 
-      const invoice = invRes.recordset[0];
-
-      if (invoice.Status === 'VOID') {
-        await tx.rollback();
-        return NextResponse.json({ status: 'ERROR', message: 'Invoice is already voided' }, { status: 400 });
-      }
-
-      // 3. Mark Invoice status as VOID and zero out BalanceDue
       await new sql.Request(tx)
         .input('invId', invoiceId)
-        .query(`
-          UPDATE Invoices
-          SET Status = 'VOID', BalanceDue = 0
-          WHERE Id = @invId
-        `);
+        .query(`UPDATE Invoices SET Status = 'VOID', BalanceDue = 0 WHERE Id = @invId`);
 
-      // 4. Post GL Reversing Entry (Debit Sales Revenue 4001, Credit AR 1100)
+      // Mirror of the original posting: debit revenue and each tax liability, credit AR.
+      const ref = invoice.InvoiceNumber;
       const lines: JournalLine[] = [
-        { accountCode: '4001', description: `Void Invoice Reversal: ${invoice.InvoiceNumber}`, debit: Number(invoice.TotalAmount) },
-        { accountCode: '1100', description: `AR Cancellation: ${invoice.InvoiceNumber}`, credit: Number(invoice.TotalAmount) },
+        { accountCode: '4001', description: `Void Invoice Reversal: ${ref}`, debit: Number(invoice.SubTotal) },
       ];
+      if (Number(invoice.VatAmount) > 0) lines.push({ accountCode: '2100', description: `VAT reversal: ${ref}`, debit: Number(invoice.VatAmount) });
+      if (Number(invoice.NhisAmount) > 0) lines.push({ accountCode: '2102', description: `NHIL reversal: ${ref}`, debit: Number(invoice.NhisAmount) });
+      if (Number(invoice.GetfundAmount) > 0) lines.push({ accountCode: '2103', description: `GETFund reversal: ${ref}`, debit: Number(invoice.GetfundAmount) });
+      lines.push({ accountCode: '1100', description: `AR Cancellation: ${ref}`, credit: Number(invoice.TotalAmount) });
 
       const glResult = await postJournalInTx(tx, db, {
         entryDate: vDate,
-        description: `Void Invoice ${invoice.InvoiceNumber} - ${reason || 'Cancelled by user'}`,
-        reference: `VOID-${invoice.InvoiceNumber}`,
+        description: `Void Invoice ${ref} - ${reason}`,
+        reference: `VOID-${ref}`,
         sourceModule: 'INVOICE_VOID',
         sourceId: invoiceId,
         lines,
-        postedBy: session?.userId || 1,
+        postedBy: session.userId,
       });
+      reversingJournalEntry = glResult.entryNumber;
 
       await tx.commit();
-
-      return NextResponse.json(
-        {
-          status: 'SUCCESS',
-          invoiceId,
-          invoiceNumber: invoice.InvoiceNumber,
-          invoiceStatus: 'VOID',
-          reversingJournalEntry: glResult.entryNumber,
-        },
-        { status: 200 }
-      );
     } catch (err) {
-      await tx.rollback();
+      await tx.rollback().catch(() => {});
       throw err;
     }
-  } catch (err: any) {
-    if (err instanceof ClosedPeriodError) {
-      return NextResponse.json(
-        { status: 'ERROR', code: 'CLOSED_PERIOD_ERROR', message: err.message },
-        { status: 409 }
-      );
-    }
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+
+    await logAudit({
+      entityType: 'INVOICE',
+      entityId: invoiceId,
+      action: 'VOID',
+      userId: session.userId,
+      oldValue: { status: invoice.Status, balanceDue: invoice.BalanceDue },
+      newValue: { status: 'VOID', balanceDue: 0, reason },
+      description: `Invoice ${invoice.InvoiceNumber} voided: ${reason}`,
+    });
+
+    return NextResponse.json({
+      status: 'SUCCESS',
+      invoiceId,
+      invoiceNumber: invoice.InvoiceNumber,
+      invoiceStatus: 'VOID',
+      reversingJournalEntry,
+    });
+  } catch (err) {
+    return errorResponse(err, 'POST /api/v1/invoices/[invoiceId]/void');
   }
 }

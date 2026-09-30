@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { updateUserSchema } from '@/lib/validation';
 import { hashPassword } from '@/lib/password';
 import { getDb } from '@/lib/db';
@@ -11,7 +11,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'admin.users.manage');
   if (errorResponse) return errorResponse;
 
   const { id } = await params;
@@ -71,7 +71,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'admin.users.manage');
   if (errorResponse) return errorResponse;
 
   const { id } = await params;
@@ -183,7 +183,7 @@ export async function PATCH(
           entityType: 'USER',
           entityId: userId,
           action: 'UPDATE',
-          userId: session?.userId || 1,
+          userId: session!.userId,
           newValue: updatedUser,
           description: `User account updated: ${changesSummary.join(', ')}`,
         });
@@ -252,7 +252,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'admin.users.manage');
   if (errorResponse) return errorResponse;
 
   const { id } = await params;
@@ -279,10 +279,7 @@ export async function DELETE(
   } catch (dbErr: any) {
     logger.warn('Failed DB soft delete', { error: dbErr.message });
     if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
-        { status: 'ERROR', message: `Failed to deactivate user account: ${dbErr.message}` },
-        { status: 500 }
-      );
+      return serverError(dbErr, '/api/v1/users/[id]');
     }
   }
 

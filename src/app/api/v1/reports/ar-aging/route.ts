@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 export async function GET(req: NextRequest) {
   const { session, errorResponse } = validateApiAuth(req, 'finance.invoices.view');
@@ -35,9 +35,6 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/reports/ar-aging');
   }
 }
