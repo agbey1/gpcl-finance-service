@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GPCL Finance & Accounting System - Operations & User Manual</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+      @bottom-right {
+        content: "Page " counter(page);
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-size: 8pt;
+        color: #64748b;
+      }
+      @bottom-left {
+        content: "Ghana Publishing Company Limited • Finance & Accounts Directorate";
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-size: 8pt;
+        color: #64748b;
+      }
+    }
+
+    @page:first {
+      margin: 0;
+      @bottom-right { content: none; }
+      @bottom-left { content: none; }
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.5;
+      color: #1e293b;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* COVER PAGE */
+    .cover-page {
+      page-break-after: always;
+      height: 297mm;
+      width: 210mm;
+      background: linear-gradient(135deg, #001730 0%, #002b55 50%, #003870 100%);
+      color: #ffffff;
+      padding: 32mm 22mm;
+      display: flex;
+      flex-direction: column;
+      justifyContent: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-accent-circle-1 {
+      position: absolute;
+      top: -100px;
+      right: -100px;
+      width: 350px;
+      height: 350px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(250, 175, 0, 0.25) 0%, rgba(0,0,0,0) 70%);
+    }
+
+    .cover-accent-circle-2 {
+      position: absolute;
+      bottom: -150px;
+      left: -150px;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 102, 204, 0.3) 0%, rgba(0,0,0,0) 70%);
+    }
+
+    .cover-header {
+      position: relative;
+      z-index: 2;
+    }
+
+    .cover-logo-wrapper {
+      width: 95px;
+      height: 95px;
+      border-radius: 18px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      padding: 6px;
+      margin-bottom: 24px;
+      border: 3px solid #faaf00;
+    }
+
+    .cover-logo-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .cover-company {
+      font-size: 15pt;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #faaf00;
+      margin-bottom: 4px;
+    }
+
+    .cover-division {
+      font-size: 10.5pt;
+      color: #94a3b8;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .cover-body {
+      position: relative;
+      z-index: 2;
+      margin-top: 40px;
+      margin-bottom: 40px;
+    }
+
+    .cover-title {
+      font-size: 28pt;
+      font-weight: 800;
+      line-height: 1.15;
+      color: #ffffff;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .cover-subtitle {
+      font-size: 12.5pt;
+      color: #cbd5e1;
+      line-height: 1.5;
+      max-width: 540px;
+      margin-bottom: 28px;
+    }
+
+    .cover-badge-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      font-size: 9pt;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+    }
+
+    .cover-footer {
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 9pt;
+      color: #94a3b8;
+    }
+
+    .cover-footer strong {
+      color: #ffffff;
+    }
+
+    /* GENERAL PAGE STYLES */
+    .page-break {
+      page-break-after: always;
+    }
+
+    .avoid-break {
+      page-break-inside: avoid;
+    }
+
+    h1, h2, h3, h4, h5 {
+      color: #0f172a;
+      font-weight: 700;
+      margin-top: 1.2em;
+      margin-bottom: 0.4em;
+    }
+
+    h1 {
+      font-size: 15pt;
+      border-bottom: 2px solid #003870;
+      padding-bottom: 4px;
+      margin-top: 0;
+      color: #003870;
+    }
+
+    h2 {
+      font-size: 12pt;
+      color: #00478f;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 3px;
+    }
+
+    h3 {
+      font-size: 10pt;
+      color: #1e293b;
+    }
+
+    p {
+      margin: 0.3em 0 0.7em 0;
+      text-align: justify;
+    }
+
+    /* TABLE OF CONTENTS */
+    .toc {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+
+    .toc-title {
+      font-size: 12pt;
+      font-weight: 800;
+      color: #003870;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1.5px solid #cbd5e1;
+      padding-bottom: 6px;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 24px;
+      row-gap: 6px;
+      font-size: 9pt;
+    }
+
+    .toc-item {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dotted #cbd5e1;
+      padding-bottom: 2px;
+    }
+
+    .toc-item span:first-child {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .toc-item span:last-child {
+      color: #64748b;
+      font-family: monospace;
+    }
+
+    /* CALLOUT BOXES */
+    .callout {
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin: 10px 0;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+
+    .callout-info {
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+      color: #1e40af;
+    }
+
+    .callout-warning {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      color: #92400e;
+    }
+
+    .callout-success {
+      background: #ecfdf5;
+      border-left: 4px solid #10b981;
+      color: #065f46;
+    }
+
+    .callout-danger {
+      background: #fef2f2;
+      border-left: 4px solid #ef4444;
+      color: #991b1b;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 3px;
+      display: block;
+      text-transform: uppercase;
+      font-size: 8pt;
+      letter-spacing: 0.5px;
+    }
+
+    /* TABLES */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 14px 0;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background: #003870;
+      color: #ffffff;
+      font-weight: 600;
+      text-align: left;
+      padding: 6px 8px;
+      border: 1px solid #002b55;
+    }
+
+    td {
+      padding: 5px 8px;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+    }
+
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    td.right, th.right {
+      text-align: right;
+    }
+
+    td.center, th.center {
+      text-align: center;
+    }
+
+    /* BADGES & KEYS */
+    kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #1e293b;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-bottom: 2px solid #94a3b8;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 7pt;
+      font-weight: 700;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+
+    /* METRIC CARDS GRID */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 8px 0 14px 0;
+      page-break-inside: avoid;
+    }
+
+    .metric-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .metric-label {
+      font-size: 7pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 11pt;
+      font-weight: 800;
+      color: #003870;
+    }
+
+    .metric-sub {
+      font-size: 7pt;
+      color: #10b981;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    ol, ul {
+      margin: 0.3em 0 0.7em 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER PAGE -->
+  <div class="cover-page">
+    <div class="cover-accent-circle-1"></div>
+    <div class="cover-accent-circle-2"></div>
+
+    <div class="cover-header">
+      <div class="cover-logo-wrapper">
+        <img src="data:image/jpeg;base64,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" alt="GPCL Logo">
+      </div>
+      <div class="cover-company">Ghana Publishing Company Ltd</div>
+      <div class="cover-division">Assembly Press, Barnes Road, Accra • Finance & Accounts Directorate</div>
+    </div>
+
+    <div class="cover-body">
+      <div class="cover-title">FINANCE & ACCOUNTING OPERATIONS MANUAL</div>
+      <div class="cover-subtitle">
+        Standard Operating Procedures for General Ledger Accounting, Fast Voucher Entry (F4–F9), Commercial Invoicing, Ghana Statutory Levies, Customer Settlements, Bank Reconciliation & Financial Statements
+      </div>
+      <div class="cover-badge-row">
+        <div class="cover-badge">FINANCE STAFF EDITION</div>
+        <div class="cover-badge">STANDARD OPERATING PROCEDURE</div>
+        <div class="cover-badge">FY 2026 / 2027</div>
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      <div>
+        <strong>Prepared For:</strong> Finance Directorate, Chief Accountants & Audit Staff<br>
+        <strong>Compliance:</strong> Ghana Revenue Authority (GRA) Tax Act & IFRS<br>
+        <strong>Head Office:</strong> Assembly Press, Barnes Road, Accra, Ghana
+      </div>
+      <div style="text-align: right;">
+        <strong>Document Status:</strong><br>
+        Official Standard Operating Procedure<br>
+        Approved for Financial Operations
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc avoid-break" style="margin-top: 10px;">
+    <div class="toc-title">Table of Contents — Finance & Accounts Manual</div>
+    <div class="toc-grid">
+      <div class="toc-item"><span>1. System Overview & Financial Principles</span><span>Page 2</span></div>
+      <div class="toc-item"><span>9. Bank Reconciliation Workspace</span><span>Page 7</span></div>
+      <div class="toc-item"><span>2. User Access & Security</span><span>Page 2</span></div>
+      <div class="toc-item"><span>10. Fiscal Budgets vs. Actuals</span><span>Page 8</span></div>
+      <div class="toc-item"><span>3. Financial Overview Dashboard</span><span>Page 3</span></div>
+      <div class="toc-item"><span>11. Fiscal Period Close & Year Lock</span><span>Page 8</span></div>
+      <div class="toc-item"><span>4. Voucher Entry Workspace (F4–F9)</span><span>Page 4</span></div>
+      <div class="toc-item"><span>12. Ghana Statutory Tax Returns (GRA)</span><span>Page 9</span></div>
+      <div class="toc-item"><span>5. Chart of Accounts & Opening Balances</span><span>Page 5</span></div>
+      <div class="toc-item"><span>13. Financial Reports & Statements</span><span>Page 10</span></div>
+      <div class="toc-item"><span>6. Journal Entries Register & Audit</span><span>Page 5</span></div>
+      <div class="toc-item"><span>14. Staff Roles & Financial Audit Trail</span><span>Page 11</span></div>
+      <div class="toc-item"><span>7. Commercial Invoicing & AR</span><span>Page 6</span></div>
+      <div class="toc-item"><span>15. Troubleshooting & Accounts FAQ</span><span>Page 12</span></div>
+      <div class="toc-item"><span>8. Customer Payments & Settlements</span><span>Page 7</span></div>
+    </div>
+  </div>
+
+  <!-- SECTION 1 -->
+  <h1>1. System Overview & Financial Principles</h1>
+  <p>
+    The <strong>GPCL Finance & Accounting System</strong> is the official accounting platform of <strong>Ghana Publishing Company Limited (Assembly Press)</strong>. It provides complete accounting governance for commercial print jobs, gazette notices, raw materials stock, supplier payments, customer credit management, statutory Ghana taxes, and executive reporting.
+  </p>
+
+  <div class="callout callout-info">
+    <span class="callout-title">Four Core Accounting Safeguards</span>
+    <strong>1. Double-Entry Balance:</strong> Every voucher and journal entry requires total Debits to equal total Credits to the exact pesewa. Unbalanced entries are rejected.<br>
+    <strong>2. Control Account Integrity:</strong> Key control accounts (Trade Receivables #1100, Trade Payables #2001, Material Inventory #1202) cannot receive direct manual journal entries. They update automatically through business transactions to prevent discrepancies.<br>
+    <strong>3. Ghana Tax Compliance:</strong> Invoices automatically apply the Ghana statutory levies (15% VAT, 2.5% NHIL, 2.5% GETFund — totaling 20% on net selling price).<br>
+    <strong>4. Period Lock Protection:</strong> Closed financial periods reject backdated postings to maintain audit compliance.
+  </div>
+
+  <!-- SECTION 2 -->
+  <h1>2. User Access & Security</h1>
+  <p>
+    Access to the financial portal is restricted to authorized personnel. Each staff member logs in using their corporate email and confidential password.
+  </p>
+  <ul>
+    <li><strong>Signing In:</strong> Navigate to the finance portal login screen, enter your corporate email (e.g., <code>sadjei@gpcl.com</code>) and password, then click <strong>Sign In</strong>.</li>
+    <li><strong>Confidentiality:</strong> Never share your password. Every invoice generated, payment collected, or voucher posted is permanently linked to your individual user account.</li>
+    <li><strong>Automatic Session Timeout:</strong> For security, your session locks after <strong>8 hours</strong> of inactivity. Sign in again to resume your work without losing saved records.</li>
+  </ul>
+
+  <!-- SECTION 3 -->
+  <div class="page-break"></div>
+  <h1>3. Financial Overview Dashboard</h1>
+  <p>
+    The Financial Dashboard gives senior management, Chief Accountants, and financial controllers real-time visibility into GPCL's trading performance and cash balances.
+  </p>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-label">Trade Receivables (AR)</div>
+      <div class="metric-value">GHS 248,500.00</div>
+      <div class="metric-sub">+12.4% vs last month</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Gross Operating Profit</div>
+      <div class="metric-value">GHS 330,000.00</div>
+      <div class="metric-sub">51.5% Gross Margin</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Ghana Levies (VAT/NHIL)</div>
+      <div class="metric-value">GHS 49,700.00</div>
+      <div class="metric-sub" style="color:#f59e0b;">15% VAT | 2.5% NHIL | 2.5% GET</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Operating Bank Balance</div>
+      <div class="metric-value">GHS 277,500.00</div>
+      <div class="metric-sub" style="color:#0284c7;">GCB Bank & Ecobank</div>
+    </div>
+  </div>
+
+  <h2>Key Dashboard Features</h2>
+  <ul>
+    <li><strong>Monthly Revenue vs. Cost of Goods Sold (COGS):</strong> Comparative bar chart illustrating monthly printing sales against direct paper stock and production costs.</li>
+    <li><strong>Operational Expense Distribution:</strong> Visual breakdown tracking Paper Stock COGS (64%), Staff Salaries (10%), Ghana Levies (10%), Office Utilities (4%), and Freight Handling (3%).</li>
+    <li><strong>Live General Ledger Activity:</strong> Real-time feed of the latest journal postings from store deliveries, invoices, customer receipts, and gazette checkout.</li>
+    <li><strong>Financial Ratios:</strong> Automated liquidity analysis showing Current Ratio (<strong>2.45 : 1</strong>), Quick Ratio (<strong>1.82 : 1</strong>), and Debt-to-Equity Ratio (<strong>0.26 : 1</strong>).</li>
+  </ul>
+
+  <!-- SECTION 4 -->
+  <h1>4. High-Speed Voucher Entry Workspace (F4 – F9)</h1>
+  <p>
+    Located under <strong>Accounting → Voucher Entry (F4-F9)</strong>, this workstation is built for rapid, mouse-free voucher data entry using standard accounting keyboard shortcuts.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 100px;">Shortcut</th>
+        <th style="width: 140px;">Voucher Type</th>
+        <th>When to Use This Voucher</th>
+        <th>Typical General Ledger Accounts</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><kbd>F4</kbd></td>
+        <td><strong>Contra Voucher</strong></td>
+        <td>Cash deposits into bank, cash withdrawals, inter-bank transfers</td>
+        <td>Dr Bank Account (1002) / Cr Main Cash (1001)</td>
+      </tr>
+      <tr>
+        <td><kbd>F5</kbd></td>
+        <td><strong>Payment Voucher</strong></td>
+        <td>Disbursements for vendor bills, utilities, petty cash expenses</td>
+        <td>Dr Office Utilities (6400) / Cr GCB Bank (1002)</td>
+      </tr>
+      <tr>
+        <td><kbd>F6</kbd></td>
+        <td><strong>Receipt Voucher</strong></td>
+        <td>Direct cash or bank receipts not linked to an invoice (e.g., scrap sales)</td>
+        <td>Dr GCB Bank (1002) / Cr Sundry Revenue (4200)</td>
+      </tr>
+      <tr>
+        <td><kbd>F7</kbd></td>
+        <td><strong>Journal Voucher</strong></td>
+        <td>Non-cash accounting adjustments, accruals, depreciation, corrections</td>
+        <td>Dr Depreciation / Cr Accumulated Depreciation</td>
+      </tr>
+      <tr>
+        <td><kbd>F8</kbd></td>
+        <td><strong>Sales Voucher</strong></td>
+        <td>Direct commercial sales and gazette publishing transactions</td>
+        <td>Dr Trade Receivables (1100) / Cr Printing Revenue (4001)</td>
+      </tr>
+      <tr>
+        <td><kbd>F9</kbd></td>
+        <td><strong>Purchase Voucher</strong></td>
+        <td>Materials stock purchases, raw paper reels, and supplier credit purchases</td>
+        <td>Dr Paper Stock Inventory (1202) / Cr Accounts Payable (2001)</td>
+      </tr>
+      <tr>
+        <td><kbd>Ctrl+F8</kbd></td>
+        <td><strong>Credit Note</strong></td>
+        <td>Customer price allowances, returned printing, billing adjustments</td>
+        <td>Dr Sales Returns (4200) / Cr Trade Receivables (1100)</td>
+      </tr>
+      <tr>
+        <td><kbd>Ctrl+F9</kbd></td>
+        <td><strong>Debit Note</strong></td>
+        <td>Returns of defective printing paper or consumables back to suppliers</td>
+        <td>Dr Accounts Payable (2001) / Cr Paper Stock Inventory (1202)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Double-Entry Balance Verification</span>
+    The voucher submission button activates only when total Debits equal total Credits. The footer displays a real-time status banner: <span class="badge badge-green">✓ DOUBLE ENTRY BALANCED</span> or <span class="badge badge-red">⚠ UNBALANCED VOUCHER</span>.
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="page-break"></div>
+  <h1>5. Chart of Accounts & Opening Balances</h1>
+  <p>
+    The Chart of Accounts (<strong>Accounting → Chart of Accounts</strong>) is organized using a standardized 4-digit hierarchy:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Code Series</th>
+        <th>Category</th>
+        <th>Normal Balance</th>
+        <th>Key GPCL Accounts</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1000 – 1999</strong></td>
+        <td><span class="badge badge-blue">ASSET</span></td>
+        <td>Debit</td>
+        <td>1001 Main Cash, 1002 GCB Bank, 1003 Ecobank, 1100 AR, 1201 Finished Goods, 1202 Paper Stock Inventory</td>
+      </tr>
+      <tr>
+        <td><strong>2000 – 2999</strong></td>
+        <td><span class="badge badge-amber">LIABILITY</span></td>
+        <td>Credit</td>
+        <td>2001 Accounts Payable, 2100 VAT (15%), 2102 NHIL (2.5%), 2103 GETFund (2.5%), 2200 WHT, 2300 PAYE</td>
+      </tr>
+      <tr>
+        <td><strong>3000 – 3999</strong></td>
+        <td><span class="badge badge-blue">EQUITY</span></td>
+        <td>Credit</td>
+        <td>3001 Stated Capital, 3002 Retained Earnings, 3900 Opening Balance Clearing</td>
+      </tr>
+      <tr>
+        <td><strong>4000 – 4999</strong></td>
+        <td><span class="badge badge-green">REVENUE</span></td>
+        <td>Credit</td>
+        <td>4001 Commercial Printing Revenue, 4100 Gazette Publication Revenue, 4200 Sales Returns</td>
+      </tr>
+      <tr>
+        <td><strong>5000 – 5999</strong></td>
+        <td><span class="badge badge-red">COGS</span></td>
+        <td>Debit</td>
+        <td>5001 Cost of Goods Sold (Raw Paper Stock, Printing Inks, Binding Consumables)</td>
+      </tr>
+      <tr>
+        <td><strong>6000 – 6999</strong></td>
+        <td><span class="badge badge-red">EXPENSE</span></td>
+        <td>Debit</td>
+        <td>6100 Salaries & Wages, 6150 Freight, 6200 Scrap Loss, 6300 Bank Fees, 6400 Utilities & Power</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Managing Opening Balances</h3>
+  <ol>
+    <li>Navigate to the Chart of Accounts list.</li>
+    <li>Locate the target account and click <strong>Edit Opening</strong>.</li>
+    <li>Input the audited starting balance in Ghana Cedis (GHS).</li>
+    <li>Click <strong>Update Opening Balance</strong>. The General Ledger starting position is updated immediately.</li>
+  </ol>
+
+  <!-- SECTION 6 -->
+  <h1>6. Journal Entries Register & Ledger Audit</h1>
+  <p>
+    The Journal Entries Register (<strong>Accounting → Journal Entries Register</strong>) records every transaction posted to the General Ledger.
+  </p>
+
+  <h2>Transaction Reversal Workflow (The Audit-Compliant Correction Method)</h2>
+  <p>
+    In compliance with standard accounting practices, posted entries are never deleted. When an entry must be cancelled:
+  </p>
+  <ol>
+    <li>Locate the journal in the register (searchable by Entry #, Source Module, or Description).</li>
+    <li>Click <strong>Reverse</strong> in the Actions column.</li>
+    <li>The system marks the original journal status as <span class="badge badge-red">REVERSED</span> and automatically generates an inverse journal entry swapping all debits and credits, permanently linking the correction in the audit trail.</li>
+  </ol>
+
+  <!-- SECTION 7 -->
+  <div class="page-break"></div>
+  <h1>7. Commercial Invoicing & Accounts Receivable (AR)</h1>
+  <p>
+    The Invoicing module (<strong>Finance → Invoices & AR</strong>) manages commercial sales invoicing, client credit exposure, Ghana statutory tax calculations, recurring contracts, and print exports.
+  </p>
+
+  <h2>7.1 Ghana Statutory Tax & Levy Engine</h2>
+  <p>
+    Every commercial sales invoice issued by GPCL automatically applies the Ghana statutory levy breakdown:
+  </p>
+  <ul>
+    <li><strong>Net Subtotal:</strong> $sum (	ext{Quantity} 	imes 	ext{Unit Selling Price})$</li>
+    <li><strong>Value Added Tax (VAT):</strong> $	ext{Net} 	imes 15.0%$</li>
+    <li><strong>National Health Insurance Levy (NHIL):</strong> $	ext{Net} 	imes 2.5%$</li>
+    <li><strong>Ghana Education Trust Fund (GETFund):</strong> $	ext{Net} 	imes 2.5%$</li>
+    <li><strong>Total Gross Amount Due:</strong> $	ext{Net} 	imes 1.20$ (Total effective statutory levy: 20%)</li>
+  </ul>
+
+  <div class="callout callout-success">
+    <span class="callout-title">Automatic General Ledger Posting Generated on Invoice Creation</span>
+    <strong>Debit:</strong> Trade Receivables Account #1100 (Total Gross Amount)<br>
+    <strong>Credit:</strong> Commercial Printing Revenue #4001 (Net Subtotal)<br>
+    <strong>Credit:</strong> VAT Payable #2100 (15% Amount)<br>
+    <strong>Credit:</strong> NHIS Payable #2102 (2.5% Amount)<br>
+    <strong>Credit:</strong> GETFund Payable #2103 (2.5% Amount)
+  </div>
+
+  <h2>7.2 Step-by-Step: Creating a Commercial Invoice</h2>
+  <ol>
+    <li>Click <strong>Create New Invoice</strong> in the Invoices register.</li>
+    <li>Select or type the <strong>Customer / Client Name</strong> (e.g., Ministry of Information, Graphic Communications, ECG).</li>
+    <li>Add line items: specify Description, Quantity, and Unit Price in GHS. Click <strong>+ Add Item Row</strong> for additional items.</li>
+    <li>Verify the automatic Ghana Statutory Tax Breakdown summary box.</li>
+    <li><em>Optional:</em> Check <strong>Set as Recurring Invoice Schedule</strong> (Weekly, Monthly, Quarterly, Yearly) for standing publication agreements.</li>
+    <li>Click <strong>Generate Commercial Invoice</strong>. The system assigns a sequential invoice number and updates the General Ledger.</li>
+  </ol>
+
+  <h2>7.3 Invoice Printing & Vector PDF Download</h2>
+  <p>
+    Click <strong>View Invoice</strong> on any record to open the full-page A4 Commercial Invoice preview with official GPCL Assembly Press letterhead, corporate TIN (<code>C0014892014</code>), itemized table, and tax schedule. Click <strong>Download Vector PDF</strong> for digital dispatch, or <strong>Print Full-Page A4</strong> for physical printing.
+  </p>
+
+  <!-- SECTION 8 -->
+  <div class="page-break"></div>
+  <h1>8. Customer Payments & AR Settlement Hub</h1>
+  <p>
+    The Payment Settlement Hub (<strong>Finance → Customer Payments</strong>) handles receipt of incoming payments, allocation against open invoices, cheque clearance workflows, and official payment receipt generation.
+  </p>
+
+  <h2>8.1 Recording a Customer Payment</h2>
+  <ol>
+    <li>Click <strong>Record Payment Receipt</strong>.</li>
+    <li>Select the Customer Name and enter the <strong>Amount Paid (GHS)</strong>.</li>
+    <li>Choose the <strong>Target Deposit Account:</strong> GCB Bank Operating (1002), Ecobank Operational (1003), or Main Cash (1001).</li>
+    <li>Select the <strong>Payment Method:</strong> Bank Transfer, Cheque, Cash, or Mobile Money (MoMo).</li>
+    <li>Input the transaction reference / cheque number (e.g., <code>TRF-994102</code>).</li>
+    <li>Select the <strong>Settled Invoice Number</strong> to allocate this payment to a specific invoice.</li>
+    <li>Click <strong>Record Payment & Post GL</strong>.</li>
+  </ol>
+
+  <h2>8.2 Cheque Clearance Tracking</h2>
+  <p>
+    Payments made via cheque are initially flagged as <span class="badge badge-amber">PENDING</span>. Once bank statement confirmation is received, click <strong>Clear Bank</strong> to transition the record to <span class="badge badge-green">CLEARED</span>.
+  </p>
+
+  <h2>8.3 Official Payment Receipts</h2>
+  <p>
+    Click <strong>Receipt</strong> beside any payment to display the official <strong>Ghana Publishing Company Ltd Official Receipt</strong>, complete with TIN credentials, client details, payment method, allocated invoice number, and printable layout.
+  </p>
+
+  <!-- SECTION 9 -->
+  <h1>9. Bank Reconciliation Workspace</h1>
+  <p>
+    Located under <strong>Accounting → Bank Reconciliation</strong>, this workspace correlates external bank statements with GPCL's internal General Ledger accounts.
+  </p>
+
+  <h2>Reconciliation Workflow</h2>
+  <ol>
+    <li>Select the target bank account: <strong>GCB Bank Operating (1002)</strong> or <strong>Ecobank Operational (1003)</strong>.</li>
+    <li>Review the live General Ledger balance displayed on the account card.</li>
+    <li>Click <strong>Upload CSV Statement</strong>. Select the CSV file exported from your bank portal (containing <code>Date</code>, <code>Narration</code>, <code>Debit</code>, <code>Credit</code>, and <code>Balance</code> columns).</li>
+    <li>Click <strong>Ingest & Auto-Match Statement</strong>. The automated matching engine correlates statement items against payments by reference number, date, and amount.</li>
+    <li>Matched transactions are marked <span class="badge badge-green">CLEARED</span>.</li>
+    <li>For remaining items (such as bank service charges or interest earnings), click <strong>Resolve Variance</strong> to automatically generate an adjusting journal entry to account #6300 (Bank Service Charges).</li>
+  </ol>
+
+  <!-- SECTION 10 & 11 -->
+  <div class="page-break"></div>
+  <h1>10. Fiscal Budgets vs. Actual Expenditure Control</h1>
+  <p>
+    Accessible via <strong>Accounting → Budgets vs. Actuals</strong>, this module enables department heads and financial controllers to establish expenditure limits per General Ledger code and track consumption.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Account Code</th>
+        <th>Expense Account Name</th>
+        <th>Category</th>
+        <th class="right">Annual Budget (GHS)</th>
+        <th class="right">Actual Spent (GHS)</th>
+        <th class="right">Variance (GHS)</th>
+        <th>Consumption %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>5001</strong></td>
+        <td>Cost of Goods Sold (Paper Stock)</td>
+        <td><span class="badge badge-blue">COGS</span></td>
+        <td class="right">350,000.00</td>
+        <td class="right">310,000.00</td>
+        <td class="right" style="color: #059669; font-weight:700;">+40,000.00</td>
+        <td>88.6% (On Track)</td>
+      </tr>
+      <tr>
+        <td><strong>6100</strong></td>
+        <td>Salaries & Staff Payroll Expenses</td>
+        <td><span class="badge badge-blue">OPERATING</span></td>
+        <td class="right">50,000.00</td>
+        <td class="right">48,750.00</td>
+        <td class="right" style="color: #059669; font-weight:700;">+1,250.00</td>
+        <td>97.5% (On Track)</td>
+      </tr>
+      <tr>
+        <td><strong>6200</strong></td>
+        <td>Utilities & Power Expenses</td>
+        <td><span class="badge badge-blue">OPERATING</span></td>
+        <td class="right">15,000.00</td>
+        <td class="right">18,500.00</td>
+        <td class="right" style="color: #dc2626; font-weight:700;">-3,500.00</td>
+        <td>123.3% (Over Budget)</td>
+      </tr>
+      <tr>
+        <td><strong>6300</strong></td>
+        <td>Freight & Stock Handling Costs</td>
+        <td><span class="badge badge-blue">OPERATING</span></td>
+        <td class="right">15,000.00</td>
+        <td class="right">12,400.00</td>
+        <td class="right" style="color: #059669; font-weight:700;">+2,600.00</td>
+        <td>82.7% (On Track)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>11. Fiscal Period Close & Financial Year Lock</h1>
+  <p>
+    Located under <strong>Accounting → Fiscal Period Close</strong>, this module locks accounting periods to prevent unauthorized retrospective entries into closed periods.
+  </p>
+
+  <div class="callout callout-danger">
+    <span class="callout-title">Audit Rule: Closed Period Lock</span>
+    Once a monthly period or financial year is closed, any subsequent attempt to post, edit, or reverse transactions within that date range is immediately rejected to safeguard audited management accounts.
+  </div>
+
+  <h2>Monthly Close Checklist</h2>
+  <ol>
+    <li>Confirm all customer sales invoices for the month have been generated.</li>
+    <li>Verify that all customer payments received have been recorded and cleared.</li>
+    <li>Complete the monthly bank reconciliation for GCB Bank and Ecobank.</li>
+    <li>Post all standard month-end adjustments (depreciation, accruals, prepayments).</li>
+    <li>Verify that the Trial Balance is in balance ($	ext{Debits} = 	ext{Credits}$).</li>
+    <li>Click <strong>Lock Period</strong> beside the target period (e.g., <code>2026-08</code>). The status updates to <span class="badge badge-amber">LOCKED</span>.</li>
+  </ol>
+
+  <!-- SECTION 12 -->
+  <div class="page-break"></div>
+  <h1>12. Ghana Statutory Tax & Levy Returns (GRA)</h1>
+  <p>
+    Accessible via <strong>Accounting → Ghana GRA Tax Returns</strong>, this module compiles monthly statutory filings for the <strong>Ghana Revenue Authority (GRA)</strong>.
+  </p>
+
+  <h2>Filing Requirements & Deadlines</h2>
+  <p>
+    Under the Ghana Value Added Tax Act, monthly VAT, NHIL, and GETFund returns must be filed and paid no later than the <strong>15th day of the month following the assessment period</strong>.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Filing Period</th>
+        <th class="right">Taxable Net Sales (GHS)</th>
+        <th class="right">VAT 15% (GHS)</th>
+        <th class="right">NHIS 2.5% (GHS)</th>
+        <th class="right">GETFund 2.5% (GHS)</th>
+        <th class="right">Total Levies Payable (GHS)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>August 2026</strong></td>
+        <td class="right">640,000.00</td>
+        <td class="right">96,000.00</td>
+        <td class="right">16,000.00</td>
+        <td class="right">16,000.00</td>
+        <td class="right" style="font-weight:700; color:#003870;">128,000.00</td>
+        <td><span class="badge badge-amber">DUE</span></td>
+      </tr>
+      <tr>
+        <td><strong>July 2026</strong></td>
+        <td class="right">580,000.00</td>
+        <td class="right">87,000.00</td>
+        <td class="right">14,500.00</td>
+        <td class="right">14,500.00</td>
+        <td class="right" style="font-weight:700; color:#003870;">116,000.00</td>
+        <td><span class="badge badge-green">FILED</span></td>
+      </tr>
+      <tr>
+        <td><strong>June 2026</strong></td>
+        <td class="right">480,000.00</td>
+        <td class="right">72,000.00</td>
+        <td class="right">12,000.00</td>
+        <td class="right">12,000.00</td>
+        <td class="right" style="font-weight:700; color:#003870;">96,000.00</td>
+        <td><span class="badge badge-green">FILED</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Click <strong>Export GRA Return PDF</strong> at the top right of the screen to generate the official tax return schedule report, formatted with GPCL's corporate TIN (<code>C0014892014</code>) for submission to the GRA Large Taxpayer Office (LTO).
+  </p>
+
+  <!-- SECTION 13 -->
+  <div class="page-break"></div>
+  <h1>13. Financial Reports & Statements</h1>
+  <p>
+    The Financial Reports hub (<strong>Accounting → Financial Reports</strong>) provides live generation and multi-format export of GPCL's primary financial statements.
+  </p>
+
+  <h2>13.1 Available Report Types</h2>
+  <ul>
+    <li><strong>Trial Balance:</strong> Displays every active account in the Chart of Accounts with closing debit and credit balances, verifying that Total Debits equal Total Credits (GHS 1,064,200.00).</li>
+    <li><strong>Day Book (Voucher Register):</strong> Itemized daily ledger displaying every voucher posted, categorized by type, reference, account, debit, and credit.</li>
+    <li><strong>Profit & Loss Statement (Income Statement):</strong> Calculates Gross Operating Revenue minus Cost of Goods Sold to establish Gross Profit Margin (51.5%), followed by operating expense deductions to yield Net Operating Profit (GHS 281,250.00).</li>
+    <li><strong>Balance Sheet (Financial Position):</strong> Displays the balance between Total Assets (GHS 704,450.00) and Total Liabilities & Equity (GHS 704,450.00).</li>
+    <li><strong>Accounts Receivable Aging Analysis:</strong> Classifies customer receivables into 0-30 days, 31-60 days, 61-90 days, and 90+ days aging brackets.</li>
+  </ul>
+
+  <h2>13.2 Multi-Format Export Capabilities</h2>
+  <p>
+    Every report can be exported in three standard formats using the header buttons:
+  </p>
+  <ul>
+    <li><strong>PDF Export:</strong> Formal vector PDF document featuring official company headers, page numbers, and calculated summary totals.</li>
+    <li><strong>Excel (XLSX):</strong> Multi-column spreadsheet formatted for financial modeling, audit review, and formula verification.</li>
+    <li><strong>CSV Data:</strong> Raw comma-separated data stream for importing into external business intelligence tools.</li>
+  </ul>
+
+  <!-- SECTION 14 -->
+  <div class="page-break"></div>
+  <h1>14. Staff Roles, Permissions & Security Audit</h1>
+
+  <h2>14.1 Finance Department User Roles</h2>
+  <ul>
+    <li><strong>Finance Administrator:</strong> Unrestricted access across all financial, accounting, administrative, and configuration modules.</li>
+    <li><strong>Senior Accountant:</strong> Full access to all ledger, voucher, reconciliation, tax, and reporting operations. Cannot alter administrative configurations.</li>
+    <li><strong>Accounts Receivable Clerk:</strong> Dedicated access to customer invoicing, payment recording, client management, and official receipt issuance.</li>
+    <li><strong>Financial Auditor:</strong> Read-only access across all general ledgers, journals, bank reconciliations, and immutable audit logs.</li>
+  </ul>
+
+  <h2>14.2 Role Permission Matrix</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Operational Scope</th>
+        <th class="center">Admin</th>
+        <th class="center">Senior Accountant</th>
+        <th class="center">AR Clerk</th>
+        <th class="center">Auditor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>View General Ledger & Reports</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+      </tr>
+      <tr>
+        <td>Post / Reverse Journal Entries</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+      </tr>
+      <tr>
+        <td>Close & Lock Fiscal Periods</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+      </tr>
+      <tr>
+        <td>Create Commercial Invoices</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+      </tr>
+      <tr>
+        <td>Record Customer Payments</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+      </tr>
+      <tr>
+        <td>Manage Bank Reconciliations</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+      </tr>
+      <tr>
+        <td>View Immutable Activity Logs</td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-red">NO</span></td>
+        <td class="center"><span class="badge badge-green">YES</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>14.3 Financial Audit Trail (Admin → System Audit Logs)</h2>
+  <p>
+    Every financial event (voucher posting, invoice generation, payment receipt, period close, login) is recorded with the user's name, action, module, date, time, and details of modified values for comprehensive audit traceability.
+  </p>
+
+  <!-- SECTION 15 -->
+  <div class="page-break"></div>
+  <h1>15. Financial Troubleshooting & Frequently Asked Questions (FAQ)</h1>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Q1: Why is my voucher rejected with "Unbalanced Journal Error"?</span>
+    Total debits must equal total credits to the exact pesewa. Check that all line items have valid numbers and that rounding differences do not exceed 1 pesewa.
+  </div>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Q2: Why does the system return "Closed Period Error"?</span>
+    The transaction date falls into an accounting month that has already been locked. Verify that the transaction date is correct. If an entry must be posted into a prior period, an authorized Finance Administrator must temporarily unlock the period under <strong>Accounting → Fiscal Period Close</strong>.
+  </div>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Q3: Why can't I post a direct journal to Account #1100 (Trade Receivables)?</span>
+    Account #1100 is a designated <strong>Control Account</strong>. Direct manual postings are blocked to keep the general ledger in sync with customer balances. Use the <strong>Invoices</strong> or <strong>Customer Payments</strong> modules instead.
+  </div>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Q4: How do I void an invoice that was issued with incorrect quantities or rates?</span>
+    Navigate to <strong>Finance → Invoices & AR</strong>, open the invoice detail modal, and click <strong>Void Invoice</strong>. Enter the cancellation reason. The system will mark the invoice as VOID, reset customer balances, and post an automated reversing General Ledger entry.
+  </div>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Q5: A customer paid by cheque, but our bank balance hasn't increased. Why?</span>
+    Cheque receipts are initially recorded with status PENDING. Once your bank statement confirms that the cheque has cleared, navigate to <strong>Finance → Customer Payments</strong> and click <strong>Clear Bank</strong> to reflect the funds in your liquid bank balance.
+  </div>
+
+  <div class="callout callout-warning">
+    <span class="callout-title">Q6: How do I generate an official VAT Return schedule for the GRA?</span>
+    Navigate to <strong>Accounting → Ghana GRA Tax Returns</strong> and click <strong>Export GRA Return PDF</strong>. The system will generate a formatted statutory tax return with your corporate TIN ready for submission.
+  </div>
+
+  <div style="margin-top: 40px; text-align: center; border-top: 1px solid #cbd5e1; padding-top: 16px; font-size: 8.5pt; color: #64748b;">
+    <strong>Ghana Publishing Company Limited (GPCL)</strong> • Assembly Press, Barnes Road, Accra, Ghana<br>
+    Finance Directorate & Technical Accounts Support • Email: <code>admin@gpcl.com</code>
+  </div>
+
+</body>
+</html>
