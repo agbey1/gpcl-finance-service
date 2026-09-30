@@ -1,34 +1,59 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  finance-service:
+  gpcl-finance-app:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: gpcl_finance_app
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3006:3006"
     environment:
-      - NODE_ENV=production
-      - JWT_SECRET=prod-finance-jwt-secret-key-32-chars-minimum-2026!
-      - SQLSERVER_HOST=sqlserver
-      - SQLSERVER_DATABASE=gpcl_finance_db
-      - SQLSERVER_USER=sa
-      - SQLSERVER_PASSWORD=ProdSqlPassword2026!
-      - SQLSERVER_ENCRYPT=false
-      - SQLSERVER_TRUST=true
-    depends_on:
-      sqlserver:
-        condition: service_healthy
+      # Application
+      NODE_ENV: production
+      PORT: 3006
+      NEXT_TELEMETRY_DISABLED: 1
 
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=ProdSqlPassword2026!
-    ports:
-      - "1433:1433"
+      # JWT Authentication
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY: 24h
+
+      # Database Configuration (External SQL Server)
+      DB_SERVER: ${DB_SERVER}
+      DB_PORT: ${DB_PORT:-1433}
+      DB_NAME: ${DB_NAME:-GPCLFinanceResource}
+      DB_USER: ${DB_USER:-sa}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_ENCRYPT: ${DB_ENCRYPT:-true}
+      DB_TRUST_SERVER_CERTIFICATE: ${DB_TRUST_SERVER_CERTIFICATE:-true}
+
+      # Application URLs
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://yourdomain.com/api/v1}
+
+    volumes:
+      - ./logs:/app/logs
+
+    networks:
+      - gpcl-network
+
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'ProdSqlPassword2026!' -Q 'SELECT 1' -C || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3006/api/v1/auth/me', (r) => {if (r.statusCode !== 401 && r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  gpcl-network:
+    driver: bridge
+
+# Note: Database is external (not Docker-managed)
+# Ensure DB_SERVER points to your SQL Server instance
+# Example: DB_SERVER=192.168.1.100 or DB_SERVER=sqlserver.yourdomain.com
