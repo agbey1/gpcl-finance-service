@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { accountBalances, naturalBalance, type AccountBalanceRow } from '@/lib/ledger';
 import { logger } from '@/lib/logger';
 
 export interface FinancialMetrics {
@@ -150,81 +150,52 @@ export function calculateHealthScore(
   return { score: Math.max(0, score), status, concerns };
 }
 
+const CURRENT_ASSET_CATEGORIES = ['cash', 'bank', 'receivables', 'inventory', 'prepayments'];
+const CURRENT_LIABILITY_CATEGORIES = ['payables', 'tax', 'accruals'];
+const isCurrent = (category: string | null, list: string[]) => {
+  const c = (category || '').toLowerCase();
+  return c.includes('current') || list.includes(c);
+};
+
 /**
- * Get financial metrics from GL data
+ * Derives ratio inputs from account balances. Balance-sheet figures use
+ * cumulative balances; revenue and net income use the year-to-date rows.
+ * Current vs non-current is decided by account Category (Cash, Bank,
+ * Receivables, Inventory, Prepayments / Payables, Tax, Accruals, or any
+ * category containing "Current").
  */
-export async function getFinancialMetrics(): Promise<FinancialMetrics> {
-  try {
-    const db = await getDb();
+export function metricsFromBalances(cumulative: AccountBalanceRow[], yearToDate: AccountBalanceRow[]): FinancialMetrics {
+  const sum = (rows: AccountBalanceRow[], pred: (r: AccountBalanceRow) => boolean) =>
+    Math.round(rows.filter(pred).reduce((t, r) => t + naturalBalance(r) * 100, 0)) / 100;
 
-    const result = await db.request().query(`
-      SELECT
-        ISNULL(SUM(CASE WHEN coa.AccountType = 'ASSET' THEN (gl.TotalDebit - gl.TotalCredit) ELSE 0 END), 0) AS Assets,
-        ISNULL(SUM(CASE WHEN coa.AccountType = 'LIABILITY' THEN (gl.TotalCredit - gl.TotalDebit) ELSE 0 END), 0) AS Liabilities,
-        ISNULL(SUM(CASE WHEN coa.AccountType = 'EQUITY' THEN (gl.TotalCredit - gl.TotalDebit) ELSE 0 END), 0) AS Equity,
-        ISNULL(SUM(CASE WHEN coa.AccountType = 'REVENUE' THEN (gl.TotalCredit - gl.TotalDebit) ELSE 0 END), 0) AS Revenue,
-        ISNULL(SUM(CASE WHEN coa.AccountType IN ('REVENUE', 'EXPENSE') THEN
-          CASE WHEN coa.AccountType = 'REVENUE' THEN (gl.TotalCredit - gl.TotalDebit)
-          ELSE (gl.TotalDebit - gl.TotalCredit) END
-        ELSE 0 END), 0) AS NetIncome,
-        ISNULL(SUM(CASE WHEN coa.Category = 'Current Assets' THEN (gl.TotalDebit - gl.TotalCredit) ELSE 0 END), 0) AS CurrentAssets,
-        ISNULL(SUM(CASE WHEN coa.Category = 'Current Assets' AND coa.AccountCode NOT LIKE '%inventory%' THEN (gl.TotalDebit - gl.TotalCredit) ELSE 0 END), 0) AS QuickAssets,
-        ISNULL(SUM(CASE WHEN coa.Category = 'Current Liabilities' THEN (gl.TotalCredit - gl.TotalDebit) ELSE 0 END), 0) AS CurrentLiabilities,
-        ISNULL(SUM(CASE WHEN coa.AccountCode = '1100' THEN (gl.TotalDebit - gl.TotalCredit) ELSE 0 END), 0) AS AccountsReceivable
-      FROM ChartOfAccounts coa
-      LEFT JOIN (
-        SELECT
-          jel.AccountId,
-          SUM(jel.Debit) AS TotalDebit,
-          SUM(jel.Credit) AS TotalCredit
-        FROM JournalEntryLines jel
-        INNER JOIN JournalEntries e ON jel.JournalEntryId = e.Id
-        WHERE e.Status = 'POSTED'
-        GROUP BY jel.AccountId
-      ) gl ON coa.Id = gl.AccountId
-      GROUP BY coa.AccountType, coa.Category, coa.AccountCode
-    `);
+  const revenue = sum(yearToDate, (r) => r.AccountType === 'REVENUE');
+  const expenses = sum(yearToDate, (r) => r.AccountType === 'EXPENSE');
+  const inventory = sum(cumulative, (r) => r.AccountType === 'ASSET' && (r.Category || '').toLowerCase() === 'inventory');
+  const currentAssets = sum(cumulative, (r) => r.AccountType === 'ASSET' && isCurrent(r.Category, CURRENT_ASSET_CATEGORIES));
 
-    if (result.recordset.length === 0) {
-      return {
-        assets: 0,
-        liabilities: 0,
-        equity: 0,
-        revenue: 0,
-        netIncome: 0,
-        currentAssets: 0,
-        quickAssets: 0,
-        currentLiabilities: 0,
-        accountsReceivable: 0,
-      };
-    }
+  return {
+    assets: sum(cumulative, (r) => r.AccountType === 'ASSET'),
+    liabilities: sum(cumulative, (r) => r.AccountType === 'LIABILITY'),
+    equity:
+      sum(cumulative, (r) => r.AccountType === 'EQUITY') +
+      sum(cumulative, (r) => r.AccountType === 'REVENUE') -
+      sum(cumulative, (r) => r.AccountType === 'EXPENSE'),
+    revenue,
+    netIncome: Math.round((revenue - expenses) * 100) / 100,
+    currentAssets,
+    quickAssets: Math.round((currentAssets - inventory) * 100) / 100,
+    currentLiabilities: sum(cumulative, (r) => r.AccountType === 'LIABILITY' && isCurrent(r.Category, CURRENT_LIABILITY_CATEGORIES)),
+    accountsReceivable: sum(cumulative, (r) => r.AccountType === 'ASSET' && (r.Category || '').toLowerCase() === 'receivables'),
+    inventory,
+  };
+}
 
-    const row = result.recordset[0];
-    return {
-      assets: Number(row.Assets) || 0,
-      liabilities: Number(row.Liabilities) || 0,
-      equity: Number(row.Equity) || 0,
-      revenue: Number(row.Revenue) || 0,
-      netIncome: Number(row.NetIncome) || 0,
-      currentAssets: Number(row.CurrentAssets) || 0,
-      quickAssets: Number(row.QuickAssets) || 0,
-      currentLiabilities: Number(row.CurrentLiabilities) || 0,
-      accountsReceivable: Number(row.AccountsReceivable) || 0,
-    };
-  } catch (err: any) {
-    logger.error('Failed to get financial metrics', { error: err.message });
-    return {
-      assets: 0,
-      liabilities: 0,
-      equity: 0,
-      revenue: 0,
-      netIncome: 0,
-      currentAssets: 0,
-      quickAssets: 0,
-      currentLiabilities: 0,
-      accountsReceivable: 0,
-    };
-  }
+export async function getFinancialMetrics(asOf: string = new Date().toISOString().slice(0, 10)): Promise<FinancialMetrics> {
+  const [cumulative, yearToDate] = await Promise.all([
+    accountBalances({ to: asOf }),
+    accountBalances({ from: `${asOf.slice(0, 4)}-01-01`, to: asOf }),
+  ]);
+  return metricsFromBalances(cumulative, yearToDate);
 }
 
 /**

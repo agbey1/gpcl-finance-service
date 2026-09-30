@@ -1,3 +1,4 @@
+import { logAudit } from '@/lib/auditLog';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { validateApiAuth, serverError } from '@/lib/apiAuth';
@@ -43,8 +44,10 @@ export async function PATCH(
 
     const resolvedParams = await params;
     const accountCode = resolvedParams.code;
-    const body = await req.json();
-    const { accountName, category, isActive } = body;
+    const body = await req.json().catch(() => ({}));
+    const accountName = typeof body.accountName === 'string' && body.accountName.trim().length >= 2 ? body.accountName.trim().slice(0, 255) : undefined;
+    const category = typeof body.category === 'string' ? body.category.trim().slice(0, 100) : undefined;
+    const isActive = typeof body.isActive === 'boolean' ? body.isActive : undefined;
 
     const db = await getDb();
     const checkRes = await db.request()
@@ -68,6 +71,15 @@ export async function PATCH(
           IsActive = COALESCE(@active, IsActive)
         WHERE AccountCode = @code
       `);
+
+    await logAudit({
+      entityType: 'ACCOUNT',
+      entityId: accountCode,
+      action: 'UPDATE',
+      userId: session!.userId,
+      newValue: { accountName, category, isActive },
+      description: `Account ${accountCode} updated`,
+    });
 
     return NextResponse.json(
       {

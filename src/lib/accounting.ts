@@ -18,6 +18,11 @@ export type PostJournalOptions = {
   lines: JournalLine[];
   postedBy: number;
   reversalOfId?: number | null;
+  /**
+   * Control accounts (AR, AP, inventory) must only move through their
+   * sub-ledgers. Manual journals set this to false.
+   */
+  allowControlAccounts?: boolean;
 };
 
 export class ClosedPeriodError extends Error {
@@ -137,7 +142,11 @@ export async function nextDocumentNumber(
   return `${stem}${String(seq).padStart(6, '0')}`;
 }
 
-async function getAccountIds(tx: sqlTypes.Transaction, codes: string[]): Promise<Map<string, number>> {
+async function getAccountIds(
+  tx: sqlTypes.Transaction,
+  codes: string[],
+  allowControlAccounts = true,
+): Promise<Map<string, number>> {
   const unique = [...new Set(codes)];
   const req = request(tx);
   const params = unique.map((code, i) => {
@@ -145,10 +154,19 @@ async function getAccountIds(tx: sqlTypes.Transaction, codes: string[]): Promise
     return `@c${i}`;
   });
   const r = await req.query(
-    `SELECT Id, Code FROM Accounts WHERE IsActive = 1 AND Code IN (${params.join(', ')})`
+    `SELECT Id, Code, IsControl FROM Accounts WHERE IsActive = 1 AND Code IN (${params.join(', ')})`
   );
-  const ids = new Map<string, number>(r.recordset.map((row: { Id: number; Code: string }) => [row.Code, row.Id]));
+  const rows: { Id: number; Code: string; IsControl: boolean }[] = r.recordset;
+  const ids = new Map<string, number>(rows.map((row) => [row.Code, row.Id]));
   const missing = unique.filter((c) => !ids.has(c));
+  if (!allowControlAccounts) {
+    const control = rows.filter((row) => row.IsControl).map((row) => row.Code);
+    if (control.length) {
+      throw new InvalidJournalError(
+        `Control account(s) ${control.join(', ')} can only be posted through their sub-ledger (invoices, payments, stores).`
+      );
+    }
+  }
   if (missing.length) {
     throw new InvalidJournalError(`Account code not found or inactive: ${missing.join(', ')}`);
   }
@@ -177,7 +195,7 @@ export async function postJournalInTx(
 
   validateJournalLines(lines);
   await assertPeriodOpen(tx, entryDate);
-  const accountIds = await getAccountIds(tx, lines.map((l) => l.accountCode));
+  const accountIds = await getAccountIds(tx, lines.map((l) => l.accountCode), opts.allowControlAccounts ?? true);
   const entryNumber = await nextDocumentNumber(tx, 'journal', 'JNL', entryDate);
 
   const entryResult = await request(tx)
@@ -219,8 +237,8 @@ export async function postJournalInTx(
 }
 
 export async function postJournal(opts: PostJournalOptions): Promise<{ journalEntryId: number; entryNumber: string }> {
-  const db = await getDb();
   validateJournalLines(opts.lines);
+  const db = await getDb();
 
   const tx = new sql.Transaction(db);
   await tx.begin();

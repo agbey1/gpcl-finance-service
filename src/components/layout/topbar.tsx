@@ -17,11 +17,50 @@ export default function Topbar() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    { id: 1, title: 'Ghana GRA Tax Return Due', desc: 'August 2026 VAT/NHIL/GETFund return filing is due in 5 days.', time: '10m ago', type: 'WARNING' },
-    { id: 2, title: 'Unmatched Bank Statement Line', desc: 'Bank charge of GHS 250.00 on GCB account requires variance resolution.', time: '1h ago', type: 'INFO' },
-    { id: 3, title: 'Overdue Customer Exposure', desc: 'State Transport Corporation has GHS 37,000.00 overdue > 90 days.', time: '3h ago', type: 'DANGER' },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Alerts derived from live data. Each check is skipped silently if the
+  // user lacks the permission to read that data.
+  useEffect(() => {
+    let cancelled = false;
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const getJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+    Promise.all([
+      getJson('/api/v1/invoices/query?status=UNPAID&take=200'),
+      getJson('/api/v1/invoices/query?status=PARTIAL&take=200'),
+      getJson(`/api/v1/accounting/periods?year=${lastMonth.getUTCFullYear()}`),
+    ]).then(([unpaid, partial, periods]) => {
+      if (cancelled) return;
+      const items: NotificationItem[] = [];
+      const open = [...(unpaid?.invoices ?? []), ...(partial?.invoices ?? [])] as { DueDate: string; BalanceDue: number }[];
+      const overdue = open.filter((i) => String(i.DueDate).slice(0, 10) < today && Number(i.BalanceDue) > 0);
+      if (overdue.length) {
+        const total = overdue.reduce((s, i) => s + Number(i.BalanceDue), 0);
+        items.push({
+          id: 1,
+          title: 'Overdue customer invoices',
+          desc: `${overdue.length} invoice(s) past due, GHS ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} outstanding.`,
+          time: 'now',
+          type: 'DANGER',
+        });
+      }
+      const period = periods?.periods?.find((p: { periodNumber: number }) => p.periodNumber === lastMonth.getUTCMonth() + 1);
+      if (period && !period.isClosed) {
+        items.push({
+          id: 2,
+          title: 'Previous period still open',
+          desc: `${lastMonth.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })} has not been closed. Close it once reconciliations and levy returns are done.`,
+          time: 'now',
+          type: 'WARNING',
+        });
+      }
+      setNotifications(items);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     // Hydrate client-only preferences after mount (localStorage is unavailable during SSR).

@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
         sourceId: input.sourceId,
         lines: input.lines,
         postedBy: session.userId,
+        allowControlAccounts: !input.sourceModule.toUpperCase().startsWith('MANUAL'),
       });
 
       await logAudit({

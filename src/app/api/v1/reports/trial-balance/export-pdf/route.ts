@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { accountBalances } from '@/lib/ledger';
 import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { generatePDF } from '@/lib/pdfExport';
 
@@ -8,23 +8,10 @@ export async function GET(req: NextRequest) {
   if (errorResponse) return errorResponse;
 
   try {
-    const db = await getDb();
+    const asOf = new URL(req.url).searchParams.get('asOf');
+    const rows = await accountBalances({ to: asOf && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? asOf : undefined });
 
-    const result = await db.request().query(`
-      SELECT
-        coa.AccountCode,
-        coa.AccountName,
-        coa.AccountType,
-        ISNULL(SUM(jel.Debit), 0) AS TotalDebit,
-        ISNULL(SUM(jel.Credit), 0) AS TotalCredit
-      FROM ChartOfAccounts coa
-      LEFT JOIN JournalEntryLines jel ON coa.Id = jel.AccountId
-      LEFT JOIN JournalEntries je ON jel.JournalEntryId = je.Id AND je.Status = 'POSTED'
-      GROUP BY coa.AccountCode, coa.AccountName, coa.AccountType
-      ORDER BY coa.AccountCode ASC
-    `);
-
-    const accounts = result.recordset;
+    const accounts = rows;
     const totalDebit = accounts.reduce((sum: number, acc: any) => sum + Number(acc.TotalDebit), 0);
     const totalCredit = accounts.reduce((sum: number, acc: any) => sum + Number(acc.TotalCredit), 0);
 

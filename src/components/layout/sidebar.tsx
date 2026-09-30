@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from './sidebar-context';
 import {
@@ -46,6 +47,23 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggleSidebar } = useSidebar();
   const width = isCollapsed ? '72px' : '260px';
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/v1/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.user) setUser({ name: d.user.name, email: d.user.email }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const initials = (user?.name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('') || '?';
 
   return (
     <aside style={{
@@ -187,11 +205,11 @@ export default function Sidebar() {
                 fontWeight: '600',
                 flexShrink: 0,
               }}>
-                FA
+                {initials}
               </div>
               <div style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                <p style={{ fontSize: '13px', fontWeight: '500', color: 'white', margin: 0 }}>Finance Admin</p>
-                <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>admin@gpcl.com</p>
+                <p style={{ fontSize: '13px', fontWeight: '500', color: 'white', margin: 0 }}>{user?.name ?? ''}</p>
+                <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>{user?.email ?? ''}</p>
               </div>
             </div>
             <Link href="/login" title="Sign Out" style={{ color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
@@ -199,7 +217,7 @@ export default function Sidebar() {
             </Link>
           </>
         ) : (
-          <Link href="/login" title="Sign Out (admin@gpcl.com)" style={{ color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px' }}>
+          <Link href="/login" title={user ? `Sign Out (${user.email})` : 'Sign Out'} style={{ color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px' }}>
             <LogOut size={18} />
           </Link>
         )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Download, Eye, Printer, RefreshCw, Ban } from 'lucide-react';
 import { exportToPdf } from '@/lib/exportUtils';
 import Pagination from '@/components/ui/pagination';
+import { api, day, fmt, newKey, postJson, todayIso } from '@/lib/clientApi';
 
 interface LineItem {
   id: number;
@@ -39,27 +40,9 @@ interface InvoiceDetails extends InvoiceRow {
 
 const STATUSES = ['ALL', 'UNPAID', 'PARTIAL', 'PAID', 'OVERDUE', 'VOID'] as const;
 
-const fmt = (n: number) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const day = (d: string) => (d ? String(d).slice(0, 10) : '');
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const todayIso = () => new Date().toISOString().slice(0, 10);
-// crypto.randomUUID is unavailable on plain-http origins, so fall back.
-const newKey = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const isOverdue = (inv: InvoiceRow) =>
   (inv.Status === 'UNPAID' || inv.Status === 'PARTIAL') && Number(inv.BalanceDue) > 0 && day(inv.DueDate) < todayIso();
-
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.status === 'ERROR') {
-    if (res.status === 401) window.location.href = '/login';
-    throw new Error(data.message || `Request failed (${res.status})`);
-  }
-  return data as T;
-}
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -182,6 +165,27 @@ export default function InvoicesPage() {
       await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to void invoice');
+    }
+  };
+
+  const handleCreditNote = async (inv: InvoiceDetails) => {
+    const amountStr = prompt(`Credit note against ${inv.InvoiceNumber}\nBalance due: GHS ${fmt(inv.BalanceDue)}\n\nAmount to credit (GHS, including levies):`);
+    if (!amountStr) return;
+    const amount = Math.round(parseFloat(amountStr) * 100) / 100;
+    if (!(amount > 0)) return alert('Enter a positive amount.');
+    const reason = prompt('Reason for the credit note:');
+    if (!reason || reason.trim().length < 3) return;
+    try {
+      const res = await postJson<{ creditNoteNumber: string }>(
+        '/api/v1/credit-notes',
+        { clientId: inv.ClientId, invoiceId: inv.Id, amount, reason: reason.trim() },
+        newKey()
+      );
+      alert(`Issued ${res.creditNoteNumber}.`);
+      setSelectedInvoice(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to issue credit note');
     }
   };
 
@@ -512,6 +516,11 @@ export default function InvoicesPage() {
                 <button className="btn btn-secondary" onClick={() => handleVoidInvoice(selectedInvoice)} style={{ color: '#dc2626', marginRight: 'auto' }}>
                   <Ban size={15} />
                   Void Invoice
+                </button>
+              )}
+              {(selectedInvoice.Status === 'UNPAID' || selectedInvoice.Status === 'PARTIAL') && Number(selectedInvoice.BalanceDue) > 0 && (
+                <button className="btn btn-secondary" onClick={() => handleCreditNote(selectedInvoice)}>
+                  Issue Credit Note
                 </button>
               )}
               <button className="btn btn-secondary" onClick={() => setSelectedInvoice(null)}>Close</button>

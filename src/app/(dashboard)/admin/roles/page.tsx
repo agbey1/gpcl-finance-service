@@ -69,9 +69,7 @@ export default function RolesPermissionsPage() {
   async function fetchRoles() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch('/api/v1/roles', {
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
 
       if (response.ok) {
@@ -124,11 +122,9 @@ export default function RolesPermissionsPage() {
     if (!selectedRole) return;
     setSaving(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch('/api/v1/roles', {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${token || ''}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -164,11 +160,9 @@ export default function RolesPermissionsPage() {
 
     setCreating(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch('/api/v1/roles', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token || ''}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -212,11 +206,9 @@ export default function RolesPermissionsPage() {
 
     setUpdating(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch(`/api/v1/roles/${editingRole.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${token || ''}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -251,10 +243,8 @@ export default function RolesPermissionsPage() {
 
     setDeleting(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const response = await fetch(`/api/v1/roles/${deletingRole.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
 
       if (response.ok) {

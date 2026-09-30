@@ -1,359 +1,219 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Check, Edit3, ArrowRightLeft } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Plus, Search, RefreshCw, Power } from 'lucide-react';
 import Pagination from '@/components/ui/pagination';
+import { api, errMsg, fmt, postJson } from '@/lib/clientApi';
+
+type AccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
 
 interface Account {
-  code: string;
-  name: string;
-  type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
-  control: boolean;
-  openingBalance: string;
-  balance: string;
+  AccountCode: string;
+  AccountName: string;
+  AccountType: AccountType;
+  Category: string | null;
+  IsControl: boolean;
+  IsActive: boolean;
+  TotalDebit: number;
+  TotalCredit: number;
+  Balance: number;
 }
 
-const initialAccounts: Account[] = [
-  { code: '1001', name: 'Main Cash Account', type: 'ASSET', control: false, openingBalance: '10,000.00', balance: '14,250.00' },
-  { code: '1002', name: 'GCB Bank - Operating Account', type: 'ASSET', control: false, openingBalance: '150,000.00', balance: '185,400.00' },
-  { code: '1003', name: 'Ecobank - Operational Account', type: 'ASSET', control: false, openingBalance: '50,000.00', balance: '92,100.00' },
-  { code: '1100', name: 'Trade Receivables (AR)', type: 'ASSET', control: true, openingBalance: '210,000.00', balance: '248,500.00' },
-  { code: '1201', name: 'Finished Goods Inventory', type: 'ASSET', control: true, openingBalance: '90,000.00', balance: '94,200.00' },
-  { code: '1202', name: 'Materials Store Inventory', type: 'ASSET', control: true, openingBalance: '140,000.00', balance: '162,100.00' },
-  { code: '2001', name: 'Accounts Payable (AP)', type: 'LIABILITY', control: true, openingBalance: '60,000.00', balance: '78,300.00' },
-  { code: '2100', name: 'VAT Payable (15%)', type: 'LIABILITY', control: false, openingBalance: '25,000.00', balance: '33,750.00' },
-  { code: '2102', name: 'NHIS Payable (2.5%)', type: 'LIABILITY', control: false, openingBalance: '5,000.00', balance: '5,625.00' },
-  { code: '2103', name: 'GETFund Payable (2.5%)', type: 'LIABILITY', control: false, openingBalance: '5,000.00', balance: '5,625.00' },
-  { code: '3001', name: 'Stated Capital', type: 'EQUITY', control: false, openingBalance: '300,000.00', balance: '300,000.00' },
-  { code: '4001', name: 'Commercial Printing Revenue', type: 'REVENUE', control: false, openingBalance: '0.00', balance: '640,000.00' },
-  { code: '5001', name: 'Cost of Goods Sold (COGS)', type: 'EXPENSE', control: false, openingBalance: '0.00', balance: '310,000.00' },
-  { code: '6100', name: 'Salaries & Wages Expense', type: 'EXPENSE', control: false, openingBalance: '0.00', balance: '48,750.00' },
-];
+const TYPES: AccountType[] = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
 
 export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
-  const [filterType, setFilterType] = useState('ALL');
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filterType, setFilterType] = useState<'ALL' | AccountType>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 15;
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showOpeningModal, setShowOpeningModal] = useState(false);
-  const [selectedAcc, setSelectedAcc] = useState<Account | null>(null);
-  const [newOpeningBal, setNewOpeningBal] = useState('');
-
-  // New Account Form State
+  const [showAdd, setShowAdd] = useState(false);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [type, setType] = useState<'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'>('ASSET');
-  const [control, setControl] = useState(false);
-  const [initialOpening, setInitialOpening] = useState('0.00');
+  const [type, setType] = useState<AccountType>('EXPENSE');
+  const [category, setCategory] = useState('');
+  const [isControl, setIsControl] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  useEffect(() => {
-    fetch('/api/v1/accounting/accounts')
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'SUCCESS' && Array.isArray(data.accounts) && data.accounts.length > 0) {
-          const apiAccs: Account[] = data.accounts.map((a: any) => ({
-            code: a.AccountCode,
-            name: a.AccountName,
-            type: a.AccountType || 'ASSET',
-            control: false,
-            openingBalance: '0.00',
-            balance: '0.00',
-          }));
-          setAccounts(apiAccs);
-        }
-      })
-      .catch(() => {});
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api<{ accounts: Account[] }>('/api/v1/accounting/accounts');
+      setAccounts(data.accounts);
+    } catch (e) {
+      setError(errMsg(e, 'Failed to load chart of accounts'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleAddAccount = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, [load]);
+
+  const addAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code || !name) return;
-
+    setSaving(true);
+    setFormError('');
     try {
-      const res = await fetch('/api/v1/accounting/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountCode: code, accountName: name, accountType: type }),
+      await postJson('/api/v1/accounting/accounts', {
+        accountCode: code.trim().toUpperCase(),
+        accountName: name.trim(),
+        accountType: type,
+        ...(category.trim() ? { category: category.trim() } : {}),
+        isControl,
       });
-      const data = await res.json();
-      if (!res.ok || data.status === 'ERROR') {
-        alert(data.message || 'Failed to create account');
-        return;
-      }
-
-      const newAccount: Account = {
-        code,
-        name,
-        type,
-        control,
-        openingBalance: Number(initialOpening).toFixed(2),
-        balance: Number(initialOpening).toFixed(2),
-      };
-
-      setAccounts([...accounts, newAccount]);
+      setShowAdd(false);
       setCode('');
       setName('');
-      setControl(false);
-      setInitialOpening('0.00');
-      setShowAddModal(false);
-    } catch (err: any) {
-      alert(err.message || 'Network error');
+      setCategory('');
+      setIsControl(false);
+      await load();
+    } catch (err) {
+      setFormError(errMsg(err, 'Failed to create account'));
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleUpdateOpeningBalance = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAcc) return;
-
-    setAccounts(accounts.map(acc => acc.code === selectedAcc.code ? {
-      ...acc,
-      openingBalance: Number(newOpeningBal).toFixed(2),
-    } : acc));
-
-    setSelectedAcc(null);
-    setShowOpeningModal(false);
+  const toggleActive = async (a: Account) => {
+    if (a.IsActive && Number(a.Balance) !== 0 && !confirm(`${a.AccountCode} has a balance of GHS ${fmt(a.Balance)}. Deactivate anyway? It will no longer accept postings.`)) return;
+    try {
+      await api(`/api/v1/accounting/accounts/${encodeURIComponent(a.AccountCode)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !a.IsActive }),
+      });
+      await load();
+    } catch (e) {
+      alert(errMsg(e, 'Update failed'));
+    }
   };
 
-  const filtered = accounts.filter(a => {
-    const matchesType = filterType === 'ALL' || a.type === filterType;
-    const matchesSearch = a.code.includes(searchTerm) || a.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesType && matchesSearch;
-  });
+  const filtered = useMemo(() => {
+    const t = searchTerm.toLowerCase();
+    return accounts.filter(
+      (a) => (filterType === 'ALL' || a.AccountType === filterType) &&
+        (a.AccountCode.toLowerCase().includes(t) || a.AccountName.toLowerCase().includes(t))
+    );
+  }, [accounts, filterType, searchTerm]);
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalDebits = accounts.reduce((s, a) => s + Number(a.TotalDebit), 0);
+  const totalCredits = accounts.reduce((s, a) => s + Number(a.TotalCredit), 0);
+  const inputStyle = { width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' };
 
   return (
     <div>
-      {/* Header & Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '700' }}>Chart of Accounts & Opening Balances</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: '700' }}>Chart of Accounts</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '2px' }}>
-            General Ledger account hierarchy, opening balance initialization, and control accounts.
+            GL accounts with posted balances. Opening balances are entered as an opening journal on the <Link href="/accounting/vouchers">Vouchers</Link> page.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          <button className="btn btn-secondary" onClick={load} disabled={loading}><RefreshCw size={16} /></button>
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
             <Plus size={16} />
-            Add New Account
+            New Account
           </button>
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {['ALL', 'ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'].map(t => (
-            <button
-              key={t}
-              onClick={() => { setFilterType(t); setCurrentPage(1); }}
-              className="btn btn-secondary"
-              style={{
-                borderColor: filterType === t ? 'var(--accent-primary)' : 'var(--border-color)',
-                color: filterType === t ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                background: filterType === t ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-card)',
-              }}
-            >
-              {t}
-            </button>
+          {(['ALL', ...TYPES] as const).map((t) => (
+            <button key={t} onClick={() => { setFilterType(t); setCurrentPage(1); }} className={filterType === t ? 'btn btn-primary' : 'btn btn-secondary'}>{t}</button>
           ))}
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px 14px', width: '280px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px 12px', width: '260px' }}>
           <Search size={16} color="var(--text-muted)" />
-          <input
-            type="text"
-            placeholder="Search code or account..."
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-primary)', fontSize: '13px' }}
-          />
+          <input type="text" placeholder="Search code or name..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-primary)', fontSize: '13px' }} />
         </div>
       </div>
 
-      {/* Accounts Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card">
+        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>{error}</p>}
         <table className="data-table">
           <thead>
             <tr>
-              <th>Account Code</th>
-              <th>Account Name</th>
+              <th>Code</th>
+              <th>Account name</th>
+              <th>Type</th>
               <th>Category</th>
-              <th>Control Account</th>
-              <th style={{ textAlign: 'right' }}>Opening Balance (GHS)</th>
-              <th style={{ textAlign: 'right' }}>Current GL Balance (GHS)</th>
-              <th style={{ textAlign: 'center' }}>Action</th>
+              <th>Control</th>
+              <th style={{ textAlign: 'right' }}>Debits (GHS)</th>
+              <th style={{ textAlign: 'right' }}>Credits (GHS)</th>
+              <th style={{ textAlign: 'right' }}>Balance (GHS)</th>
+              <th style={{ textAlign: 'center' }}>Status</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedData.map(acc => (
-              <tr key={acc.code}>
-                <td style={{ fontWeight: '700', fontFamily: 'monospace', color: 'var(--accent-primary)' }}>{acc.code}</td>
-                <td style={{ fontWeight: '600' }}>{acc.name}</td>
-                <td>
-                  <span className={`badge ${
-                    acc.type === 'ASSET' ? 'badge-info' :
-                    acc.type === 'LIABILITY' ? 'badge-warning' :
-                    acc.type === 'REVENUE' ? 'badge-success' : 'badge-danger'
-                  }`}>
-                    {acc.type}
-                  </span>
-                </td>
-                <td>{acc.control ? 'YES (Control Account)' : 'NO'}</td>
-                <td style={{ textAlign: 'right', fontWeight: '600', fontFamily: 'monospace' }}>GHS {acc.openingBalance}</td>
-                <td style={{ textAlign: 'right', fontWeight: '700' }}>GHS {acc.balance}</td>
+            {loading && <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Loading…</td></tr>}
+            {!loading && paginated.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No accounts found.</td></tr>}
+            {paginated.map((a) => (
+              <tr key={a.AccountCode} style={{ opacity: a.IsActive ? 1 : 0.55 }}>
+                <td style={{ fontWeight: '700', fontFamily: 'monospace', color: 'var(--accent-primary)' }}>{a.AccountCode}</td>
+                <td style={{ fontWeight: '600' }}>{a.AccountName}</td>
+                <td><span className="badge badge-info">{a.AccountType}</span></td>
+                <td>{a.Category || '—'}</td>
+                <td>{a.IsControl ? 'Yes' : 'No'}</td>
+                <td style={{ textAlign: 'right' }}>{fmt(a.TotalDebit)}</td>
+                <td style={{ textAlign: 'right' }}>{fmt(a.TotalCredit)}</td>
+                <td style={{ textAlign: 'right', fontWeight: '700' }}>{fmt(a.Balance)}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button
-                    onClick={() => { setSelectedAcc(acc); setNewOpeningBal(acc.openingBalance); setShowOpeningModal(true); }}
-                    className="btn btn-secondary"
-                    style={{ padding: '4px 10px', fontSize: '12px' }}
-                  >
-                    <Edit3 size={12} />
-                    Edit Opening
+                  <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => toggleActive(a)} title={a.IsActive ? 'Deactivate' : 'Activate'}>
+                    <Power size={12} />
+                    {a.IsActive ? 'Active' : 'Inactive'}
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
+          {!loading && accounts.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: '700' }}>
+                <td colSpan={5}>Ledger totals {Math.round(totalDebits * 100) === Math.round(totalCredits * 100) ? '(balanced)' : '(OUT OF BALANCE)'}</td>
+                <td style={{ textAlign: 'right' }}>{fmt(totalDebits)}</td>
+                <td style={{ textAlign: 'right' }}>{fmt(totalCredits)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          )}
         </table>
-
-        {/* Pagination Controls */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filtered.length}
-          pageSize={pageSize}
-          onPageChange={p => setCurrentPage(p)}
-        />
+        <Pagination currentPage={currentPage} totalPages={totalPages} totalItems={filtered.length} pageSize={pageSize} onPageChange={setCurrentPage} />
       </div>
 
-      {/* Add New Account Modal */}
-      {showAddModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-        }}>
-          <div className="card" style={{ width: '450px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>Add New Chart of Account</h2>
-            
-            <form onSubmit={handleAddAccount} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Account Code</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 1004 / 6500"
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Account Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Office Supplies Expense"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Account Category / Type</label>
-                <select
-                  value={type}
-                  onChange={e => setType(e.target.value as any)}
-                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-                >
-                  <option value="ASSET">ASSET (1000s)</option>
-                  <option value="LIABILITY">LIABILITY (2000s)</option>
-                  <option value="EQUITY">EQUITY (3000s)</option>
-                  <option value="REVENUE">REVENUE (4000s)</option>
-                  <option value="EXPENSE">EXPENSE (5000s/6000s)</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Opening Balance (GHS)</label>
-                <input
-                  type="number"
-                  placeholder="0.00"
-                  value={initialOpening}
-                  onChange={e => setInitialOpening(e.target.value)}
-                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <input
-                  type="checkbox"
-                  id="isControl"
-                  checked={control}
-                  onChange={e => setControl(e.target.checked)}
-                  style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-                />
-                <label htmlFor="isControl" style={{ fontSize: '13px', cursor: 'pointer' }}>Is Control Account (Restricts Direct Posting)</label>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Account</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Opening Balance Modal */}
-      {showOpeningModal && selectedAcc && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-        }}>
-          <div className="card" style={{ width: '420px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Set Opening Balance</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              Account #{selectedAcc.code} - {selectedAcc.name}
-            </p>
-
-            <form onSubmit={handleUpdateOpeningBalance} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Opening Balance (GHS)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={newOpeningBal}
-                  onChange={e => setNewOpeningBal(e.target.value)}
-                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowOpeningModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Update Opening Balance</button>
-              </div>
-            </form>
-          </div>
+      {showAdd && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form className="card" onSubmit={addAccount} style={{ width: '460px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '700' }}>New GL account</h2>
+            <input placeholder="Account code, e.g. 6200" required pattern="[0-9A-Za-z-]{2,20}" value={code} onChange={(e) => setCode(e.target.value)} style={inputStyle} />
+            <input placeholder="Account name" required minLength={2} maxLength={255} value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+            <select value={type} onChange={(e) => setType(e.target.value as AccountType)} style={inputStyle}>
+              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input placeholder="Category (optional)" maxLength={100} value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle} />
+            <label style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px' }}>
+              <input type="checkbox" checked={isControl} onChange={(e) => setIsControl(e.target.checked)} />
+              Control account (only posted through a sub-ledger, never by manual journal)
+            </label>
+            {formError && <p style={{ color: '#dc2626', fontSize: '13px' }}>{formError}</p>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowAdd(false)} disabled={saving}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Create account'}</button>
+            </div>
+          </form>
         </div>
       )}
     </div>

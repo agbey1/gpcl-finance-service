@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Download, Eye, Printer, RefreshCw } from 'lucide-react';
 import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
 import Pagination from '@/components/ui/pagination';
+import { api, day, fmt, newKey, todayIso } from '@/lib/clientApi';
 
 type Method = 'BANK_TRANSFER' | 'CHEQUE' | 'MOBILE_MONEY' | 'CASH';
 
@@ -40,23 +41,6 @@ interface OpenInvoice {
   Status: string;
 }
 
-const fmt = (n: number) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const day = (d: string) => (d ? String(d).slice(0, 10) : '');
-const todayIso = () => new Date().toISOString().slice(0, 10);
-const newKey = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.status === 'ERROR') {
-    if (res.status === 401) window.location.href = '/login';
-    throw new Error(data.message || `Request failed (${res.status})`);
-  }
-  return data as T;
-}
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);

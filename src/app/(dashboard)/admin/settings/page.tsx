@@ -29,9 +29,7 @@ export default function SettingsPage() {
   async function fetchSettings() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('gpcl_token');
       const res = await fetch('/api/v1/settings', {
-        headers: { Authorization: `Bearer ${token || ''}` },
       });
 
       if (res.ok) {
@@ -68,7 +66,6 @@ export default function SettingsPage() {
     setSaving(true);
 
     try {
-      const token = localStorage.getItem('gpcl_token');
       const payload = {
         companyName,
         tin,
@@ -87,7 +84,6 @@ export default function SettingsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
         },
         body: JSON.stringify(payload),
       });

@@ -94,13 +94,16 @@ Run the service over HTTPS (for example behind IIS or nginx). Session cookies ar
   only allowed while nothing has been paid or credited. Otherwise issue a credit note.
 - Credit notes against an invoice reverse revenue and levies pro rata and cannot exceed the balance due.
 - Payments must match the invoice's client. Overpayments become an open credit note.
+- Manual journals (Vouchers page) cannot post to control accounts (AR, AP, inventory); those move only through their sub-ledgers.
+- Only manual journals can be reversed. Reversal posts a mirror entry linked by `ReversalOfId`; the original stays posted.
+- Reports (trial balance, P&L, balance sheet, budgets, ratios, dashboard, levy return) read posted entries only and are date-bounded.
 
 ## Known limitations
 
-- Several dashboard screens (Dashboard, Journal Entries, Budgets, Tax Reports,
-  Vouchers, Audit Logs, parts of Reports) still show sample data and are not yet
-  connected to the API. Invoices, Payments, Chart of Accounts, Bank
-  Reconciliation, Users, Roles and Settings use live data.
+- Input VAT, withholding tax and accounts payable are not tracked; the levy return covers output levies only.
 - Rate limiting and idempotency keys are held in process memory, which is correct
   for the single-instance PM2 deployment. Running several instances needs a shared store.
-- GL account codes for postings (1001, 1002, 1100, 2100, 2102, 2103, 4001) are fixed in code.
+- GL account codes for system postings (1001, 1002, 1100, 2100, 2102, 2103, 4001) are fixed in code.
+- Closed periods cannot be re-opened from the UI (by design); a database administrator must do it.
+- Current vs non-current classification for ratios uses the account `Category`
+  (Cash, Bank, Receivables, Inventory, Prepayments / Payables, Tax, Accruals, or any name containing "Current").

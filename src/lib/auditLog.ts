@@ -60,129 +60,51 @@ export async function logAudit(entry: AuditLogEntry): Promise<void> {
   }
 }
 
+export type AuditQuery = {
+  entityType?: string;
+  entityId?: string;
+  userId?: number;
+  from?: Date;
+  to?: Date;
+  limit?: number;
+};
+
 /**
- * Get audit log entries for an entity
+ * Audit trail search. All filters are optional; results are newest first.
+ * Errors propagate so callers can report a failure instead of an empty trail.
  */
-export async function getAuditLog(
-  entityType: string,
-  entityId: string | number,
-  limit: number = 50
-): Promise<any[]> {
-  try {
-    const db = await getDb();
+export async function queryAuditLog(q: AuditQuery): Promise<Record<string, unknown>[]> {
+  const db = await getDb();
+  const req = db.request().input('limit', Math.min(1000, Math.max(1, q.limit ?? 100)));
+  const where: string[] = [];
+  if (q.entityType) { where.push('a.EntityType = @entityType'); req.input('entityType', q.entityType); }
+  if (q.entityId) { where.push('a.EntityId = @entityId'); req.input('entityId', q.entityId); }
+  if (q.userId) { where.push('a.UserId = @userId'); req.input('userId', q.userId); }
+  if (q.from) { where.push('a.CreatedAt >= @from'); req.input('from', q.from); }
+  if (q.to) { where.push('a.CreatedAt < @to'); req.input('to', q.to); }
 
-    const result = await db.request()
-      .input('entityType', entityType)
-      .input('entityId', entityId.toString())
-      .input('limit', limit)
-      .query(`
-        SELECT TOP (@limit)
-          Id,
-          EntityType,
-          EntityId,
-          Action,
-          UserId,
-          OldValue,
-          NewValue,
-          Description,
-          IpAddress,
-          CreatedAt
-        FROM AuditLog
-        WHERE EntityType = @entityType AND EntityId = @entityId
-        ORDER BY CreatedAt DESC
-      `);
+  const result = await req.query(`
+    SELECT TOP (@limit)
+      a.Id, a.EntityType, a.EntityId, a.Action, a.UserId, u.Email AS UserEmail, u.Name AS UserName,
+      a.OldValue, a.NewValue, a.Description, a.IpAddress, a.CreatedAt
+    FROM AuditLog a
+    LEFT JOIN Users u ON u.Id = a.UserId
+    ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+    ORDER BY a.CreatedAt DESC, a.Id DESC
+  `);
 
-    return result.recordset.map((row: any) => ({
-      ...row,
-      oldValue: row.OldValue ? JSON.parse(row.OldValue) : null,
-      newValue: row.NewValue ? JSON.parse(row.NewValue) : null,
-    }));
-  } catch (err: any) {
-    logger.error('Failed to retrieve audit log', { error: err.message });
-    return [];
-  }
+  return result.recordset.map((row: Record<string, unknown>) => ({
+    ...row,
+    oldValue: safeJson(row.OldValue),
+    newValue: safeJson(row.NewValue),
+  }));
 }
 
-/**
- * Get audit log entries for a date range
- */
-export async function getAuditLogByDateRange(
-  startDate: Date,
-  endDate: Date,
-  limit: number = 100
-): Promise<any[]> {
+function safeJson(v: unknown): unknown {
+  if (typeof v !== 'string' || !v) return null;
   try {
-    const db = await getDb();
-
-    const result = await db.request()
-      .input('startDate', startDate)
-      .input('endDate', endDate)
-      .input('limit', limit)
-      .query(`
-        SELECT TOP (@limit)
-          Id,
-          EntityType,
-          EntityId,
-          Action,
-          UserId,
-          OldValue,
-          NewValue,
-          Description,
-          IpAddress,
-          CreatedAt
-        FROM AuditLog
-        WHERE CreatedAt BETWEEN @startDate AND @endDate
-        ORDER BY CreatedAt DESC
-      `);
-
-    return result.recordset.map((row: any) => ({
-      ...row,
-      oldValue: row.OldValue ? JSON.parse(row.OldValue) : null,
-      newValue: row.NewValue ? JSON.parse(row.NewValue) : null,
-    }));
-  } catch (err: any) {
-    logger.error('Failed to retrieve audit log by date range', { error: err.message });
-    return [];
-  }
-}
-
-/**
- * Get audit log by user
- */
-export async function getAuditLogByUser(
-  userId: number,
-  limit: number = 50
-): Promise<any[]> {
-  try {
-    const db = await getDb();
-
-    const result = await db.request()
-      .input('userId', userId)
-      .input('limit', limit)
-      .query(`
-        SELECT TOP (@limit)
-          Id,
-          EntityType,
-          EntityId,
-          Action,
-          UserId,
-          OldValue,
-          NewValue,
-          Description,
-          IpAddress,
-          CreatedAt
-        FROM AuditLog
-        WHERE UserId = @userId
-        ORDER BY CreatedAt DESC
-      `);
-
-    return result.recordset.map((row: any) => ({
-      ...row,
-      oldValue: row.OldValue ? JSON.parse(row.OldValue) : null,
-      newValue: row.NewValue ? JSON.parse(row.NewValue) : null,
-    }));
-  } catch (err: any) {
-    logger.error('Failed to retrieve audit log by user', { error: err.message });
-    return [];
+    return JSON.parse(v);
+  } catch {
+    return v;
   }
 }

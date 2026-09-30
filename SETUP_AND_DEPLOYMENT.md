@@ -71,3 +71,7 @@ then restarts the `gpcl-finance-service` PM2 process on port 3006.
 - User administration now requires `admin.users.manage` (ADMIN / SUPER_ADMIN have it by role).
 - Payment method `MOMO` is now `MOBILE_MONEY`. The API rejects unknown methods.
 - Voiding requires a reason and `finance.invoices.void`. It is refused once an invoice has payments or credits.
+- Manual journals can no longer post to control accounts (1100 AR, 2001 AP, 1201/1202 inventory).
+- Bank reconciliation now uses the real `BankAccounts` IDs. It previously sent GL codes and could not find any account.
+- The browser no longer keeps the session token in `localStorage`; it relies on the `httpOnly` cookie.
+

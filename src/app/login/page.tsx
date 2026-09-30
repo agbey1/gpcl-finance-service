@@ -31,9 +31,6 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok && data.status === 'SUCCESS') {
-        if (data.token) {
-          localStorage.setItem('gpcl_token', data.token);
-        }
         window.location.href = '/dashboard';
       } else {
         setErrorMsg(data.message || 'Invalid email address or password.');

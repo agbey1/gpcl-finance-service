@@ -21,10 +21,10 @@ export async function POST(
     }
 
     // Get variance reason from request body
-    const body = await req.json();
-    const varianceReason = body.varianceReason || 'Manual resolution';
+    const body = await req.json().catch(() => ({}));
+    const varianceReason = typeof body.varianceReason === 'string' ? body.varianceReason.trim().slice(0, 500) : '';
 
-    if (!varianceReason || varianceReason.length === 0) {
+    if (varianceReason.length < 3) {
       return NextResponse.json(
         { status: 'ERROR', message: 'Variance reason is required' },
         { status: 400 }
