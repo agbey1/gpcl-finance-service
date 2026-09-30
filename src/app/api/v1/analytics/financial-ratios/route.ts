@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { generateFinancialRatiosReport } from '@/lib/financialRatios';
 
 export async function GET(req: NextRequest) {
@@ -17,6 +17,6 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/analytics/financial-ratios');
   }
 }

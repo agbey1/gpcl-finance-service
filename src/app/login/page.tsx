@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Building2, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
@@ -11,6 +11,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
+
+  // Arriving at the login page (including via "Sign Out") ends any existing session.
+  useEffect(() => {
+    localStorage.removeItem('gpcl_token');
+    fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {});
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

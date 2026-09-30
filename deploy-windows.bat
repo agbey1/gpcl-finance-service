@@ -1,27 +1,40 @@
 @echo off
+setlocal
 echo ===================================================
-echo   GPCL Finance Service - Windows Server PM2 Setup
+echo   GPCL Finance Service - Windows Server PM2 Deploy
 echo ===================================================
 
-REM Ensure logs directory exists
+if not exist ".env.production" if not exist ".env" (
+  echo ERROR: No .env.production or .env file found. Copy .env.example and fill it in first.
+  exit /b 1
+)
+
 if not exist "logs" mkdir logs
 
-echo Installing production dependencies...
-call npm install --omit=dev
+echo Installing dependencies (including build tooling)...
+call npm ci || exit /b 1
 
-echo Running Database Migrations...
-call npm run migrate
+echo Type-checking, testing and building...
+call npm run typecheck || exit /b 1
+call npm test -- --ci || exit /b 1
+call npm run build || exit /b 1
 
-echo Managing PM2 process...
-call pm2 stop gpcl-finance-service 2>nul
+echo Applying database migrations...
+call npm run migrate || exit /b 1
+
+echo Removing development dependencies...
+call npm prune --omit=dev || exit /b 1
+
+echo Restarting under PM2...
 call pm2 delete gpcl-finance-service 2>nul
-call pm2 start ecosystem.config.js
+call pm2 start ecosystem.config.js || exit /b 1
 call pm2 save
 
 echo.
 echo ===================================================
-echo   Deployment Completed Successfully!
-echo   Service Running under PM2 on port 3006.
-echo   Check status: npx pm2 status
-echo   View logs: npx pm2 logs gpcl-finance-service
+echo   Deployment complete. Service on port 3006.
+echo   Health:  curl http://localhost:3006/api/v1/health
+echo   Status:  pm2 status
+echo   Logs:    pm2 logs gpcl-finance-service
 echo ===================================================
+endlocal

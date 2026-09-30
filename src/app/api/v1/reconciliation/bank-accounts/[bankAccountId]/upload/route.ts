@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseBankStatementCsv } from '@/lib/bankStatementParser';
 import { saveAndMatchBankStatement, ReconciliationError } from '@/lib/reconciliation';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_CONTENT_TYPES = ['text/csv', 'text/plain', 'application/vnd.ms-excel'];
@@ -77,7 +77,7 @@ export async function POST(
       );
     }
 
-    const userId = session?.userId || 1;
+    const userId = session!.userId;
     const result = await saveAndMatchBankStatement(bankAccountId, file.name, userId, rows);
 
     return NextResponse.json({
@@ -100,9 +100,6 @@ export async function POST(
       );
     }
 
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/reconciliation/bank-accounts/[bankAccountId]/upload');
   }
 }

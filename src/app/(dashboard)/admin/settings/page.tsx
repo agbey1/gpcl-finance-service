@@ -26,11 +26,7 @@ export default function SettingsPage() {
   const [autoPostGrn, setAutoPostGrn] = useState(true);
   const [allowOverdue, setAllowOverdue] = useState(false);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  async function fetchSettings() {
     setLoading(true);
     try {
       const token = localStorage.getItem('gpcl_token');
@@ -60,6 +56,12 @@ export default function SettingsPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSettings();
+  }, []);
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();

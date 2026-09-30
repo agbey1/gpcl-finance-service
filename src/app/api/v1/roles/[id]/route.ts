@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { getDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import sql from 'mssql';
@@ -104,7 +104,7 @@ export async function PATCH(
     });
   } catch (err: any) {
     logger.error('Error updating role', { error: err.message });
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Failed to update role' }, { status: 500 });
+    return serverError(err, '/api/v1/roles/[id]');
   }
 }
 
@@ -175,6 +175,6 @@ export async function DELETE(
     });
   } catch (err: any) {
     logger.error('Error deleting role', { error: err.message });
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Failed to delete role' }, { status: 500 });
+    return serverError(err, '/api/v1/roles/[id]');
   }
 }

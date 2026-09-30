@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBankTransactions } from '@/lib/reconciliation';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 export async function GET(
   req: NextRequest,
@@ -47,9 +47,6 @@ export async function GET(
       },
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/reconciliation/bank-accounts/[bankAccountId]/transactions');
   }
 }

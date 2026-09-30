@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { logAudit } from '@/lib/auditLog';
 import { z } from 'zod';
 
@@ -18,7 +18,7 @@ const createClientSchema = z.object({
 const updateClientSchema = createClientSchema.partial();
 
 export async function GET(req: NextRequest) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'finance.clients.view');
   if (errorResponse) return errorResponse;
 
   try {
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/clients');
   }
 }
 
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       entityType: 'CLIENT',
       entityId: insertedClient.Id,
       action: 'CREATE',
-      userId: session?.userId || 1,
+      userId: session!.userId,
       newValue: {
         name: insertedClient.Name,
         email: insertedClient.Email,
@@ -137,6 +137,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/clients');
   }
 }

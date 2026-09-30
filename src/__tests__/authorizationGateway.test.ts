@@ -1,3 +1,4 @@
+import { authHeader } from '../test-utils/auth';
 import { NextRequest } from 'next/server';
 import { validateApiAuth } from '../lib/apiAuth';
 
@@ -158,29 +159,30 @@ describe('Authorization Gateway - All Endpoints', () => {
     });
   });
 
-  describe('Test Environment Bypass', () => {
-    it('should allow all operations in test environment without auth header', () => {
+  describe('No environment bypass', () => {
+    it('should require authentication even when NODE_ENV is test', () => {
       (process.env as any).NODE_ENV = 'test';
-
       const req = new NextRequest('http://localhost:3000/api/v1/reports/financial-statements');
       const { session, errorResponse } = validateApiAuth(req, 'accounting.view');
 
-      // In test mode, should bypass auth
-      expect(session).not.toBeNull();
-      expect(session?.role).toBe('ADMIN');
-      expect(errorResponse).toBeNull();
+      expect(session).toBeNull();
+      expect(errorResponse?.status).toBe(401);
     });
 
-    it('should bypass permission checks in test environment', () => {
-      (process.env as any).NODE_ENV = 'test';
-
+    it('should accept a valid token and enforce its permissions', () => {
       const req = new NextRequest('http://localhost:3000/api/v1/accounting/accounts', {
         method: 'POST',
+        headers: authHeader('AUDITOR', ['accounting.view']),
       });
-      const { session, errorResponse } = validateApiAuth(req, 'accounting.accounts.create');
+      expect(validateApiAuth(req, 'accounting.view').errorResponse).toBeNull();
+      expect(validateApiAuth(req, 'accounting.accounts.create').errorResponse?.status).toBe(403);
+    });
 
-      expect(session).not.toBeNull();
-      expect(errorResponse).toBeNull();
+    it('should allow ADMIN role regardless of listed permissions', () => {
+      const req = new NextRequest('http://localhost:3000/api/v1/accounting/accounts', {
+        headers: authHeader('ADMIN', []),
+      });
+      expect(validateApiAuth(req, 'accounting.accounts.create').errorResponse).toBeNull();
     });
   });
 });

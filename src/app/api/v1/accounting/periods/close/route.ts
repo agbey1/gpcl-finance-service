@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { hasPermission } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -9,8 +9,10 @@ export async function POST(req: NextRequest) {
     const { session, errorResponse } = validateApiAuth(req, 'accounting.period.close');
     if (errorResponse) return errorResponse;
 
-    const body = await req.json();
-    const { year, periodNumber, closeDate, notes, force = false } = body;
+    const body = await req.json().catch(() => ({}));
+    const { closeDate, notes, force = false } = body;
+    const year = Number(body.year);
+    const periodNumber = Number(body.periodNumber);
 
     if (force) {
       const canForce = session && (
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
 
-    if (!year || !periodNumber) {
+    if (!Number.isInteger(year) || year < 2000 || year > 2100 || !Number.isInteger(periodNumber) || periodNumber < 1 || periodNumber > 12) {
       return NextResponse.json(
         { status: 'ERROR', message: 'year and periodNumber (1-12) are required.' },
         { status: 400 }
@@ -89,7 +91,7 @@ export async function POST(req: NextRequest) {
       await db.request()
         .input('y', year)
         .input('p', periodNumber)
-        .input('closedBy', session?.userId || 1)
+        .input('closedBy', session!.userId)
         .input('closedAt', cDate)
         .input('notes', notes || 'Period closed via API')
         .query(`
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
       await db.request()
         .input('y', year)
         .input('p', periodNumber)
-        .input('closedBy', session?.userId || 1)
+        .input('closedBy', session!.userId)
         .input('closedAt', cDate)
         .input('notes', notes || 'Period closed via API')
         .query(`
@@ -119,15 +121,12 @@ export async function POST(req: NextRequest) {
         periodNumber,
         isClosed: true,
         closedAt: cDate.toISOString(),
-        closedBy: session?.userId || 1,
+        closedBy: session!.userId,
         notes: notes || 'Period closed successfully with GL pre-validation',
       },
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/accounting/periods/close');
   }
 }

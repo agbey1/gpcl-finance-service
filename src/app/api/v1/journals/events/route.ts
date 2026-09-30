@@ -1,79 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { postJournal, ClosedPeriodError, UnbalancedJournalError } from '@/lib/accounting';
-import { getIdempotentResponse, saveIdempotentResponse } from '@/lib/idempotency';
+import { z } from 'zod';
+import { postJournal } from '@/lib/accounting';
 import { validateApiAuth } from '@/lib/apiAuth';
+import { errorResponse, parseBody, withIdempotency } from '@/lib/apiErrors';
+import { businessDate, parseBusinessDate } from '@/lib/dates';
+import { logAudit } from '@/lib/auditLog';
+
+const journalSchema = z.object({
+  sourceModule: z.string().trim().min(1).max(50),
+  sourceId: z.union([z.string().trim().min(1).max(50), z.number().int()]),
+  entryDate: businessDate.optional(),
+  description: z.string().trim().max(500).optional(),
+  reference: z.string().trim().max(100).optional(),
+  lines: z
+    .array(
+      z.object({
+        accountCode: z.string().trim().min(1).max(20),
+        description: z.string().trim().max(500).optional(),
+        debit: z.number().finite().nonnegative().max(1e12).optional(),
+        credit: z.number().finite().nonnegative().max(1e12).optional(),
+        branchId: z.number().int().positive().optional().nullable(),
+      })
+    )
+    .min(2)
+    .max(500),
+});
 
 export async function POST(req: NextRequest) {
-  try {
-    // 1. Authorization & Permission check
-    const { session, errorResponse } = validateApiAuth(req, 'accounting.journal.post');
-    if (errorResponse) return errorResponse;
+  const { session, errorResponse: authError } = validateApiAuth(req, 'accounting.journal.post');
+  if (authError || !session) return authError!;
 
-    const body = await req.json();
-    const { idempotencyKey: bodyKey, sourceModule, sourceId, entryDate, description, reference, postedBy, lines } = body;
+  return withIdempotency(req, 'journals.post', session.userId, async () => {
+    try {
+      const input = await parseBody(req, journalSchema);
+      const entryDate = input.entryDate ? parseBusinessDate(input.entryDate) : new Date();
 
-    // 2. Idempotency Key validation from header or payload
-    const idempotencyKey =
-      req.headers.get('idempotency-key') ||
-      req.headers.get('x-idempotency-key') ||
-      bodyKey;
+      // postJournal validates balance, line shape, accounts and the fiscal period.
+      const result = await postJournal({
+        entryDate,
+        description: input.description || `Journal entry from ${input.sourceModule}`,
+        reference: input.reference,
+        sourceModule: input.sourceModule,
+        sourceId: input.sourceId,
+        lines: input.lines,
+        postedBy: session.userId,
+      });
 
-    if (idempotencyKey) {
-      const cached = getIdempotentResponse(idempotencyKey);
-      if (cached) {
-        return NextResponse.json(cached.responseBody, { status: cached.responseStatus });
-      }
-    }
+      await logAudit({
+        entityType: 'JOURNAL_ENTRY',
+        entityId: result.journalEntryId,
+        action: 'POST',
+        userId: session.userId,
+        newValue: { entryNumber: result.entryNumber, entryDate: entryDate.toISOString(), ...input },
+        description: `Manual journal ${result.entryNumber} posted`,
+      });
 
-    if (!sourceModule || !sourceId || !lines || !Array.isArray(lines) || lines.length < 2) {
       return NextResponse.json(
-        { status: 'ERROR', message: 'Invalid payload: sourceModule, sourceId, and at least 2 journal lines are required.' },
-        { status: 400 }
+        {
+          status: 'SUCCESS',
+          journalEntryId: result.journalEntryId,
+          entryNumber: result.entryNumber,
+          postedAt: new Date().toISOString(),
+        },
+        { status: 201 }
       );
+    } catch (err) {
+      return errorResponse(err, 'POST /api/v1/journals/events');
     }
-
-    const parsedDate = entryDate ? new Date(entryDate) : new Date();
-
-    const result = await postJournal({
-      entryDate: parsedDate,
-      description: description || `Journal entry from ${sourceModule}`,
-      reference,
-      sourceModule,
-      sourceId,
-      lines,
-      postedBy: session?.userId || postedBy || 1,
-    });
-
-    const successPayload = {
-      status: 'SUCCESS',
-      journalEntryId: result.journalEntryId,
-      entryNumber: result.entryNumber,
-      postedAt: new Date().toISOString(),
-    };
-
-    if (idempotencyKey) {
-      saveIdempotentResponse(idempotencyKey, 201, successPayload);
-    }
-
-    return NextResponse.json(successPayload, { status: 201 });
-  } catch (err: any) {
-    if (err instanceof ClosedPeriodError) {
-      return NextResponse.json(
-        { status: 'ERROR', code: 'CLOSED_PERIOD_ERROR', message: err.message, financialYear: err.year },
-        { status: 409 }
-      );
-    }
-
-    if (err instanceof UnbalancedJournalError) {
-      return NextResponse.json(
-        { status: 'ERROR', code: 'UNBALANCED_JOURNAL', message: err.message },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  });
 }

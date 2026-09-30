@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { logAudit } from '@/lib/auditLog';
 import { z } from 'zod';
 
@@ -18,7 +18,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'finance.clients.view');
   if (errorResponse) return errorResponse;
 
   try {
@@ -55,7 +55,7 @@ export async function GET(
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/clients/[clientId]');
   }
 }
 
@@ -182,7 +182,7 @@ export async function PATCH(
       entityType: 'CLIENT',
       entityId: id,
       action: 'UPDATE',
-      userId: session?.userId || 1,
+      userId: session!.userId,
       oldValue: {
         name: oldClient.Name,
         email: oldClient.Email,
@@ -207,7 +207,7 @@ export async function PATCH(
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/clients/[clientId]');
   }
 }
 
@@ -249,7 +249,7 @@ export async function DELETE(
       entityType: 'CLIENT',
       entityId: id,
       action: 'DELETE',
-      userId: session?.userId || 1,
+      userId: session!.userId,
       oldValue: {
         name: deletedClient.Name,
         email: deletedClient.Email,
@@ -266,6 +266,6 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/clients/[clientId]');
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 export async function GET(
   req: NextRequest,
@@ -21,21 +21,12 @@ export async function GET(
 
     const invoiceResult = await db.request().input('id', id).query(`
       SELECT
-        Id,
-        InvoiceNumber,
-        ClientId,
-        InvoiceDate,
-        DueDate,
-        SubTotal,
-        VatAmount,
-        NhisAmount,
-        GetfundAmount,
-        TotalAmount,
-        BalanceDue,
-        Status,
-        CreatedAt
-      FROM Invoices
-      WHERE Id = @id
+        i.Id, i.InvoiceNumber, i.ClientId, COALESCE(i.ClientName, c.Name) AS ClientName,
+        i.InvoiceDate, i.DueDate, i.SubTotal, i.VatAmount, i.NhisAmount, i.GetfundAmount,
+        i.TotalAmount, i.BalanceDue, i.Status, i.CreatedAt
+      FROM Invoices i
+      LEFT JOIN Clients c ON c.Id = i.ClientId
+      WHERE i.Id = @id
     `);
 
     if (!invoiceResult.recordset.length) {
@@ -75,11 +66,21 @@ export async function GET(
       ORDER BY CreditNoteDate DESC
     `);
 
+    // InvoiceLines exists from migration 010; invoices created earlier have no lines.
+    const linesResult = await db.request().input('invoiceId', id).query(`
+      IF OBJECT_ID('dbo.InvoiceLines', 'U') IS NOT NULL
+        SELECT LineNumber, Description, Quantity, UnitPrice, LineTotal
+        FROM InvoiceLines WHERE InvoiceId = @invoiceId ORDER BY LineNumber
+      ELSE
+        SELECT TOP 0 1 AS LineNumber
+    `);
+
     return NextResponse.json(
       {
         status: 'SUCCESS',
         invoice: {
           ...invoice,
+          lines: linesResult.recordset,
           payments: paymentsResult.recordset,
           creditNotes: creditsResult.recordset,
         },
@@ -87,6 +88,6 @@ export async function GET(
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/invoices/[invoiceId]/details');
   }
 }

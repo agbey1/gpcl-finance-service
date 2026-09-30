@@ -19,6 +19,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Hydrate client-only preferences after mount (localStorage is unavailable during SSR).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const saved = localStorage.getItem('gpcl_sidebar_collapsed');
     if (saved === 'true') {

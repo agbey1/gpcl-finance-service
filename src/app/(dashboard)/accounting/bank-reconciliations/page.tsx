@@ -29,11 +29,7 @@ export default function BankReconciliationsPage() {
 
   const bankAccountId = bankAccountMap[selectedBank] || 1002;
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [selectedBank]);
-
-  const fetchTransactions = async () => {
+  async function fetchTransactions() {
     setLoading(true);
     try {
       const token = localStorage.getItem('gpcl_token');
@@ -49,6 +45,12 @@ export default function BankReconciliationsPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchTransactions();
+  }, [selectedBank]);
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -24,6 +24,8 @@ export default function Topbar() {
   ]);
 
   useEffect(() => {
+    // Hydrate client-only preferences after mount (localStorage is unavailable during SSR).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const savedTheme = localStorage.getItem('gpcl_theme') as 'light' | 'dark' | null;
     if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {

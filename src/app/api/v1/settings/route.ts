@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSystemSettings, updateSystemSettings } from '@/lib/settings';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { logAudit } from '@/lib/auditLog';
 
 export async function GET(req: NextRequest) {
@@ -14,10 +14,7 @@ export async function GET(req: NextRequest) {
       settings,
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Failed to fetch settings' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/settings');
   }
 }
 
@@ -27,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const userId = session?.userId || 1;
+    const userId = session!.userId;
 
     const oldSettings = await getSystemSettings();
     const updatedSettings = await updateSystemSettings(body, userId);
@@ -48,10 +45,7 @@ export async function POST(req: NextRequest) {
       settings: updatedSettings,
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Failed to update settings' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/settings');
   }
 }
 

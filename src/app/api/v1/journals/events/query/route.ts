@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 export async function GET(req: NextRequest) {
   const { session, errorResponse } = validateApiAuth(req, 'accounting.journal.view');
@@ -11,8 +11,8 @@ export async function GET(req: NextRequest) {
     const accountCode = url.searchParams.get('accountCode');
     const sourceModule = url.searchParams.get('sourceModule');
     const entryNumber = url.searchParams.get('entryNumber');
-    const skip = parseInt(url.searchParams.get('skip') || '0', 10);
-    const take = parseInt(url.searchParams.get('take') || '10', 10);
+    const skip = Math.max(0, parseInt(url.searchParams.get('skip') || '0', 10) || 0);
+    const take = Math.min(200, Math.max(1, parseInt(url.searchParams.get('take') || '10', 10) || 10));
 
     let query = `
       SELECT
@@ -67,6 +67,6 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/journals/events/query');
   }
 }

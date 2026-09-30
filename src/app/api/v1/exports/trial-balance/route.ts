@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { generateExcel, generateCSV, prepareGLExport } from '@/lib/dataExport';
 
 export async function GET(req: NextRequest) {
@@ -59,6 +59,6 @@ export async function GET(req: NextRequest) {
       });
     }
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/exports/trial-balance');
   }
 }

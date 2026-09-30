@@ -1,34 +1,44 @@
-version: '3.8'
+# Local / staging stack. All secrets come from a .env file next to this one
+# (copy .env.example). Nothing sensitive is hardcoded here.
+#
+#   docker compose up -d --build
+#   docker compose run --rm finance-service node scripts/migrate.js
+#   docker compose run --rm -it finance-service node scripts/create-admin.js --email you@example.com --name "You"
 
 services:
   finance-service:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${PORT:-3006}:3006"
+    env_file: .env
     environment:
-      - NODE_ENV=production
-      - JWT_SECRET=prod-finance-jwt-secret-key-32-chars-minimum-2026!
-      - SQLSERVER_HOST=sqlserver
-      - SQLSERVER_DATABASE=gpcl_finance_db
-      - SQLSERVER_USER=sa
-      - SQLSERVER_PASSWORD=ProdSqlPassword2026!
-      - SQLSERVER_ENCRYPT=false
-      - SQLSERVER_TRUST=true
+      NODE_ENV: production
+      PORT: "3006"
+      SQLSERVER_HOST: ${SQLSERVER_HOST:-sqlserver}
     depends_on:
       sqlserver:
         condition: service_healthy
 
+  # Development database only. In production point SQLSERVER_HOST at the real
+  # server and start just the app: `docker compose up -d finance-service --no-deps`.
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
     environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=ProdSqlPassword2026!
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'ProdSqlPassword2026!' -Q 'SELECT 1' -C || exit 1"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -C || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+volumes:
+  mssql-data:

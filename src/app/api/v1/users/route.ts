@@ -27,7 +27,7 @@ export const mockUsersStore: Array<UserRecord & { passwordHash: string }> = [
 ];
 
 export async function GET(req: NextRequest) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'admin.users.manage');
   if (errorResponse) return errorResponse;
 
   let dbErrorOccurred = false;
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { session, errorResponse } = validateApiAuth(req);
+  const { session, errorResponse } = validateApiAuth(req, 'admin.users.manage');
   if (errorResponse) return errorResponse;
 
   try {
@@ -104,7 +104,6 @@ export async function POST(req: NextRequest) {
     const passwordHash = await hashPassword(password);
 
     // Database insert
-    let dbSuccess = false;
     let dbErrorMsg = '';
 
     try {
@@ -149,7 +148,7 @@ export async function POST(req: NextRequest) {
         entityType: 'USER',
         entityId: inserted.Id,
         action: 'CREATE',
-        userId: session?.userId || 1,
+        userId: session!.userId,
         newValue: {
           email: lowerEmail,
           name,

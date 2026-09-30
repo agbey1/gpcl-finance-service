@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { computeCreditExposure } from '@/lib/creditLimit';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 
 export async function GET(
   req: NextRequest,
@@ -36,9 +36,6 @@ export async function GET(
       isUnlimited: exposure.available === Number.POSITIVE_INFINITY,
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { status: 'ERROR', message: err.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return serverError(err, '/api/v1/clients/[clientId]/credit-exposure');
   }
 }

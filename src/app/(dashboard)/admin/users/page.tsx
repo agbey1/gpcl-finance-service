@@ -55,11 +55,7 @@ export default function UserManagementPage() {
   const [editFormError, setEditFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  async function fetchUsers() {
     setLoading(true);
     setErrorMessage('');
     try {
@@ -89,6 +85,12 @@ export default function UserManagementPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Load on mount; state updates happen after the request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchUsers();
+  }, []);
 
   const handleRoleChange = async (userId: number, newRoleId: string) => {
     try {
@@ -577,7 +579,7 @@ export default function UserManagementPage() {
                   Reset / Change Password (Optional)
                 </h4>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                  Leave password fields empty to keep the user's existing password unchanged.
+                  Leave password fields empty to keep the user&apos;s existing password unchanged.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

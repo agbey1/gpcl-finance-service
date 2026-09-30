@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiAuth } from '@/lib/apiAuth';
+import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { createBudget, listBudgets } from '@/lib/budgeting';
 import { z } from 'zod';
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const fiscalYear = parseInt(url.searchParams.get('fiscalYear') || new Date().getFullYear().toString(), 10);
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+    const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50));
 
     const budgets = await listBudgets(fiscalYear, limit);
 
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/analytics/budgets');
   }
 }
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const { budgetId, budgetName } = await createBudget({
       ...parseResult.data,
-      createdBy: session?.userId || 1,
+      createdBy: session!.userId,
     });
 
     return NextResponse.json(
@@ -75,6 +75,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err: any) {
-    return NextResponse.json({ status: 'ERROR', message: err.message || 'Internal server error' }, { status: 500 });
+    return serverError(err, '/api/v1/analytics/budgets');
   }
 }

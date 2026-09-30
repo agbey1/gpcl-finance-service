@@ -1,14 +1,22 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('Invalid email address format').max(255),
+  // Only bound the length here; strength rules apply when a password is set.
+  password: z.string().min(1, 'Password is required').max(200),
 });
+
+const newPassword = z
+  .string()
+  .min(10, 'Password must be at least 10 characters')
+  .max(200, 'Password must be at most 200 characters')
+  .regex(/[A-Za-z]/, 'Password must contain a letter')
+  .regex(/[0-9]/, 'Password must contain a number');
 
 export const createUserSchema = z.object({
   name: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Invalid email address format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: newPassword,
   role: z.string().min(1, 'Role is required'),
   isActive: z.boolean().optional().default(true),
 });
@@ -16,7 +24,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(2, 'Full name must be at least 2 characters').optional(),
   email: z.string().email('Invalid email address format').optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  password: newPassword.optional(),
   role: z.string().min(1, 'Role is required').optional(),
   isActive: z.boolean().optional(),
 });

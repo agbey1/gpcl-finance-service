@@ -149,7 +149,7 @@ sqlcmd -S 10.100.0.20 -U sa -P <password> \
   -Q "BACKUP DATABASE [GPCLFinanceResource] TO DISK='C:\Backups\backup.bak' WITH INIT, COMPRESSION"
 
 # Run migrations
-node scripts/deploy-migrations.js
+npm run migrate
 ```
 
 Expected output:
@@ -181,7 +181,7 @@ npm start
 # Test auth
 curl -X POST http://10.100.0.20:3006/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@gpcl.com","password":"Password123!"}'
+  -d '{"email":"admin@gpcl.com","password":"<your admin password>"}'
 
 # Test roles (should show 4 roles, not error)
 curl -H "Authorization: Bearer <token>" http://10.100.0.20:3006/api/v1/roles
@@ -201,7 +201,7 @@ curl -H "Authorization: Bearer <token>" http://10.100.0.20:3006/api/v1/reports/t
 |------|--------|--------|
 | scripts/migrations/004_add_roles_and_permissions.sql | NEW | Create Roles & RolePermissions tables |
 | scripts/migrations/005_add_missing_client_columns.sql | NEW | Add missing Clients columns |
-| scripts/deploy-migrations.js | NEW | Automated migration runner |
+| scripts/migrate.js | NEW | Automated migration runner |
 | src/app/api/v1/reports/trial-balance/route.ts | FIXED | Fix XML parsing bug, use correct table JOIN |
 | src/app/api/v1/clients/route.ts | FIXED | Remove unused request objects |
 | .env | UPDATED | Replace hardcoded secrets with placeholders |
