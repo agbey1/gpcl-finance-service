@@ -44,6 +44,7 @@ export async function GET(
         Amount,
         PaymentMethod,
         Reference,
+        ISNULL(Status, 'POSTED') AS Status,
         CreatedAt
       FROM Payments
       WHERE InvoiceId = @invoiceId

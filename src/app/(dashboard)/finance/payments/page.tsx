@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Download, Eye, Printer, RefreshCw } from 'lucide-react';
+import { Plus, Search, Download, Eye, Printer, RefreshCw, RotateCcw } from 'lucide-react';
 import { exportToPdf, exportToExcel } from '@/lib/exportUtils';
 import Pagination from '@/components/ui/pagination';
-import { api, day, fmt, newKey, todayIso } from '@/lib/clientApi';
+import { api, day, fmt, newKey, postJson, todayIso } from '@/lib/clientApi';
 
 type Method = 'BANK_TRANSFER' | 'CHEQUE' | 'MOBILE_MONEY' | 'CASH';
 
@@ -26,11 +26,14 @@ interface PaymentRow {
   Amount: number;
   PaymentMethod: Method;
   Reference: string | null;
+  Status?: 'POSTED' | 'REVERSED';
+  ReversalReason?: string | null;
 }
 
 interface Client {
   Id: number;
   Name: string;
+  IsActive?: boolean;
 }
 
 interface OpenInvoice {
@@ -74,7 +77,7 @@ export default function PaymentsPage() {
     try {
       const [pay, cl, unpaid, partial] = await Promise.all([
         api<{ payments: PaymentRow[] }>('/api/v1/payments/query?take=200'),
-        api<{ clients: Client[] }>('/api/v1/clients?take=100'),
+        api<{ clients: Client[] }>('/api/v1/clients?take=1000&includeInactive=1'),
         api<{ invoices: OpenInvoice[] }>('/api/v1/invoices/query?status=UNPAID&take=200'),
         api<{ invoices: OpenInvoice[] }>('/api/v1/invoices/query?status=PARTIAL&take=200'),
       ]);
@@ -140,6 +143,27 @@ export default function PaymentsPage() {
     }
   };
 
+  const [reversing, setReversing] = useState(false);
+  const handleReversePayment = async (p: PaymentRow) => {
+    const reason = prompt(
+      `Reverse ${p.PaymentNumber} (GHS ${fmt(p.Amount)} from ${p.ClientName ?? 'customer'})?\n\n` +
+      'A reversing ledger entry dated today will be posted and the invoice balance restored. Use this for bounced cheques or payments recorded in error.\n\nReason:'
+    );
+    if (reason === null) return;
+    if (reason.trim().length < 5) return alert('Please give a reason of at least 5 characters.');
+    setReversing(true);
+    try {
+      const res = await postJson<{ reversalEntryNumber: string; voidedCreditNote: string | null }>(`/api/v1/payments/${p.Id}/reverse`, { reason: reason.trim() });
+      alert(`${p.PaymentNumber} reversed by ${res.reversalEntryNumber}.${res.voidedCreditNote ? ` Overpayment credit ${res.voidedCreditNote} voided.` : ''}`);
+      setSelectedPayment(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Reversal failed');
+    } finally {
+      setReversing(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return payments.filter((p) => {
@@ -153,8 +177,9 @@ export default function PaymentsPage() {
     });
   }, [payments, filterMethod, searchTerm]);
 
-  const totalCollected = payments.reduce((sum, p) => sum + Number(p.Amount), 0);
-  const allocated = payments.filter((p) => p.InvoiceId).reduce((sum, p) => sum + Number(p.Amount), 0);
+  const livePayments = payments.filter((p) => p.Status !== 'REVERSED');
+  const totalCollected = livePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+  const allocated = livePayments.filter((p) => p.InvoiceId).reduce((sum, p) => sum + Number(p.Amount), 0);
   const unallocated = totalCollected - allocated;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -168,6 +193,7 @@ export default function PaymentsPage() {
     Reference: p.Reference || '',
     amount: fmt(p.Amount),
     InvoiceNumber: p.InvoiceNumber || 'Unallocated',
+    status: p.Status === 'REVERSED' ? 'Reversed' : 'Posted',
   }));
   const exportCols = [
     { header: 'Receipt #', key: 'PaymentNumber' },
@@ -177,6 +203,7 @@ export default function PaymentsPage() {
     { header: 'Reference', key: 'Reference' },
     { header: 'Amount (GHS)', key: 'amount' },
     { header: 'Invoice', key: 'InvoiceNumber' },
+    { header: 'Status', key: 'status' },
   ];
 
   const fieldStyle = { width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' };
@@ -215,7 +242,7 @@ export default function PaymentsPage() {
         <div className="card">
           <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>TOTAL RECEIVED</p>
           <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#059669', marginTop: '4px' }}>GHS {fmt(totalCollected)}</h2>
-          <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>{payments.length} receipts loaded</p>
+          <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>{livePayments.length} receipts{payments.length > livePayments.length ? ` (${payments.length - livePayments.length} reversed, excluded)` : ''}</p>
         </div>
         <div className="card">
           <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>ALLOCATED TO INVOICES</p>
@@ -287,7 +314,10 @@ export default function PaymentsPage() {
                 <td>{METHOD_LABELS[p.PaymentMethod] || p.PaymentMethod}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{p.Reference || '—'}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{p.InvoiceNumber || 'Unallocated'}</td>
-                <td style={{ textAlign: 'right', fontWeight: '700' }}>{fmt(p.Amount)}</td>
+                <td style={{ textAlign: 'right', fontWeight: '700', textDecoration: p.Status === 'REVERSED' ? 'line-through' : undefined, color: p.Status === 'REVERSED' ? 'var(--text-muted)' : undefined }}>
+                  {fmt(p.Amount)}
+                  {p.Status === 'REVERSED' && <span className="badge badge-danger" style={{ marginLeft: '6px', textDecoration: 'none', display: 'inline-block' }}>REVERSED</span>}
+                </td>
                 <td style={{ textAlign: 'center' }}>
                   <button onClick={() => setSelectedPayment(p)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }}>
                     <Eye size={12} />
@@ -311,7 +341,7 @@ export default function PaymentsPage() {
                 <label style={labelStyle}>Customer / Client</label>
                 <select value={clientId} onChange={(e) => { setClientId(e.target.value); setInvoiceId(''); }} style={fieldStyle} required>
                   <option value="">Select a client…</option>
-                  {clients.map((c) => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
+                  {clients.map((c) => <option key={c.Id} value={c.Id}>{c.Name}{c.IsActive === false ? ' (inactive)' : ''}</option>)}
                 </select>
               </div>
 
@@ -343,7 +373,7 @@ export default function PaymentsPage() {
                     {(Object.keys(METHOD_LABELS) as Method[]).map((m) => <option key={m} value={m}>{METHOD_LABELS[m]}</option>)}
                   </select>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Posts to {method === 'BANK_TRANSFER' ? 'Bank (1002)' : 'Cash (1001)'}
+                    Posts to the {method === 'BANK_TRANSFER' ? 'bank' : 'cash'} account
                   </p>
                 </div>
                 <div>
@@ -379,7 +409,7 @@ export default function PaymentsPage() {
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Assembly Press, Barnes Road, Accra | TIN: C0014892014</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>OFFICIAL RECEIPT</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: selectedPayment.Status === 'REVERSED' ? '#dc2626' : '#059669' }}>{selectedPayment.Status === 'REVERSED' ? 'REVERSED RECEIPT' : 'OFFICIAL RECEIPT'}</h3>
                 <p style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: '700' }}>{selectedPayment.PaymentNumber}</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Date: {day(selectedPayment.PaymentDate)}</p>
               </div>
@@ -393,7 +423,18 @@ export default function PaymentsPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid var(--border-color)', paddingTop: '10px', fontWeight: '700', fontSize: '18px' }}><span>AMOUNT RECEIVED:</span><span>GHS {fmt(selectedPayment.Amount)}</span></div>
             </div>
 
+            {selectedPayment.Status === 'REVERSED' && (
+              <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>
+                This payment was reversed{selectedPayment.ReversalReason ? `: ${selectedPayment.ReversalReason}` : '.'}
+              </p>
+            )}
             <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              {selectedPayment.Status !== 'REVERSED' && (
+                <button className="btn btn-secondary" style={{ color: '#dc2626', borderColor: '#dc2626', marginRight: 'auto' }} onClick={() => handleReversePayment(selectedPayment)} disabled={reversing}>
+                  <RotateCcw size={15} />
+                  {reversing ? 'Reversing…' : 'Reverse Payment'}
+                </button>
+              )}
               <button className="btn btn-secondary" onClick={() => setSelectedPayment(null)}>Close</button>
               <button className="btn btn-primary" onClick={() => window.print()}>
                 <Printer size={15} />

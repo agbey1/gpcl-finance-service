@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     let query = `
       SELECT
         p.Id, p.PaymentNumber, p.ClientId, c.Name AS ClientName, p.InvoiceId, i.InvoiceNumber,
-        p.PaymentDate, p.Amount, p.PaymentMethod, p.Reference, p.BankAccountId, p.CreatedAt
+        p.PaymentDate, p.Amount, p.PaymentMethod, p.Reference, p.BankAccountId, p.CreatedAt,
+        ISNULL(p.Status, 'POSTED') AS Status, p.ReversedAt, p.ReversalReason
       FROM Payments p
       LEFT JOIN Clients c ON c.Id = p.ClientId
       LEFT JOIN Invoices i ON i.Id = p.InvoiceId

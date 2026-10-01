@@ -26,6 +26,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { id: 'finance.creditnotes.create', name: 'Issue Credit Notes', description: 'Issue credit notes against customer invoices', category: 'Invoicing & AR' },
   { id: 'finance.payments.view', name: 'View Payments', description: 'View payment records and history', category: 'Invoicing & AR' },
   { id: 'finance.payments.create', name: 'Record Payments', description: 'Record customer receipts and settle invoices', category: 'Invoicing & AR' },
+  { id: 'finance.payments.reverse', name: 'Reverse Payments', description: 'Reverse a recorded customer payment (restores the invoice balance)', category: 'Invoicing & AR' },
   { id: 'finance.clients.view', name: 'View Clients', description: 'View client information and credit limits', category: 'Invoicing & AR' },
   { id: 'finance.clients.create', name: 'Create Clients', description: 'Create new client accounts', category: 'Invoicing & AR' },
   { id: 'finance.clients.update', name: 'Update Clients', description: 'Modify client information', category: 'Invoicing & AR' },

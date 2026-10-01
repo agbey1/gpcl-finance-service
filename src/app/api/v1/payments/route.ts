@@ -108,12 +108,13 @@ export async function POST(req: NextRequest) {
           .input('reference', input.reference || null)
           .input('bankAccountId', input.bankAccountId ?? null)
           .input('recordedBy', session.userId)
+          .input('overpaymentCreditNoteId', overpaymentCreditNoteId)
           .query(`
             INSERT INTO Payments
-              (PaymentNumber, ClientId, InvoiceId, PaymentDate, Amount, PaymentMethod, Reference, BankAccountId, RecordedBy)
+              (PaymentNumber, ClientId, InvoiceId, PaymentDate, Amount, PaymentMethod, Reference, BankAccountId, RecordedBy, OverpaymentCreditNoteId)
             OUTPUT INSERTED.Id
             VALUES
-              (@paymentNumber, @clientId, @invoiceId, @paymentDate, @amount, @paymentMethod, @reference, @bankAccountId, @recordedBy)
+              (@paymentNumber, @clientId, @invoiceId, @paymentDate, @amount, @paymentMethod, @reference, @bankAccountId, @recordedBy, @overpaymentCreditNoteId)
           `);
         paymentId = payRes.recordset[0].Id;
 

@@ -123,6 +123,7 @@ export async function saveAndMatchBankStatement(
             SELECT TOP 1 p.Id, p.PaymentNumber, p.Amount, p.PaymentDate
             FROM Payments p WITH (UPDLOCK) -- Row lock to prevent duplicate matches
             WHERE ABS(p.Amount - @amt) <= @tolerance
+              AND ISNULL(p.Status, 'POSTED') <> 'REVERSED'
               AND p.PaymentDate BETWEEN @dateStart AND @dateEnd
               AND NOT EXISTS (
                 SELECT 1 FROM BankStatementLines bsl2
