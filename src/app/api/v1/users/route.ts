@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
     const result = await db.request().query(`
-      SELECT Id, Email, Name, Role, IsActive, CreatedAt FROM Users ORDER BY Id ASC
+      SELECT Id, Email, Name, Role, IsActive, CreatedAt, LastLoginAt FROM Users ORDER BY Id ASC
     `);
 
     if (result.recordset) {
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         status: u.IsActive ? 'ACTIVE' : 'INACTIVE',
         isActive: Boolean(u.IsActive),
         createdAt: u.CreatedAt ? new Date(u.CreatedAt).toISOString() : new Date().toISOString(),
+        lastLogin: u.LastLoginAt ? new Date(u.LastLoginAt).toISOString() : undefined,
       }));
       return NextResponse.json({ status: 'SUCCESS', users });
     }

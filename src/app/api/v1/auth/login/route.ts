@@ -62,6 +62,12 @@ export async function POST(req: NextRequest) {
     const env = getEnv();
     const token = signJwt(sessionData, env.JWT_EXPIRES_IN_SECONDS);
     logger.audit('User logged in', { userId: user.Id, email: user.Email, ip });
+    try {
+      await db.request().input('id', user.Id).query('UPDATE Users SET LastLoginAt = SYSUTCDATETIME() WHERE Id = @id');
+    } catch (err) {
+      // Never block sign-in because the timestamp could not be written.
+      logger.warn('Could not record last login', { userId: user.Id, error: err instanceof Error ? err.message : String(err) });
+    }
 
     const response = NextResponse.json({ status: 'SUCCESS', token, user: sessionData }, { status: 200 });
     response.cookies.set(SESSION_COOKIE, token, {
