@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSidebar } from './sidebar-context';
-import { Bell, Search, Sun, Moon, AlertTriangle, FileText, Landmark, X, PanelLeft } from 'lucide-react';
+import { Bell, Sun, Moon, AlertTriangle, FileText, Landmark, X, PanelLeft } from 'lucide-react';
 
 interface NotificationItem {
   id: number;
@@ -101,7 +101,7 @@ export default function Topbar() {
       boxShadow: 'var(--shadow-sm)',
       transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     }}>
-      {/* Left Search & Sidebar Toggle */}
+      {/* Sidebar Toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button
           onClick={toggleSidebar}
@@ -112,14 +112,6 @@ export default function Topbar() {
           <PanelLeft size={18} />
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px 14px', width: '340px' }}>
-          <Search size={16} color="var(--text-muted)" />
-          <input
-            type="text"
-            placeholder="Search accounts, journals, invoices..."
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '13px', width: '100%' }}
-          />
-        </div>
       </div>
 
       {/* Action Indicators, Notification Center & Theme Switcher */}

@@ -50,7 +50,7 @@ export default function BankReconciliationsPage() {
     if (!bankAccountId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/reconciliation/bank-accounts/${bankAccountId}/transactions`, {
+      const res = await fetch(`/api/v1/reconciliation/bank-accounts/${bankAccountId}/transactions?take=1000`, {
       });
       if (res.ok) {
         const data = await res.json();

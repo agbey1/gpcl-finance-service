@@ -8,7 +8,7 @@ import sql from 'mssql';
 
 const createClientSchema = z.object({
   name: z.string().min(2).max(100),
-  email: z.string().email().optional(),
+  email: z.union([z.string().trim().email(), z.literal('')]).optional(),
   phone: z.string().max(20).optional(),
   address: z.string().max(255).optional(),
   creditLimit: z.number().min(0).optional().nullable(),
@@ -26,12 +26,14 @@ export async function GET(req: NextRequest) {
     const rawSkip = parseInt(url.searchParams.get('skip') || '0', 10);
     const rawTake = parseInt(url.searchParams.get('take') || '10', 10);
     const skip = isNaN(rawSkip) || rawSkip < 0 ? 0 : rawSkip;
-    const take = isNaN(rawTake) || rawTake <= 0 ? 10 : Math.min(rawTake, 100);
+    const take = isNaN(rawTake) || rawTake <= 0 ? 10 : Math.min(rawTake, 1000);
+    const includeInactive = url.searchParams.get('includeInactive') === '1';
 
     const db = await getDb();
     const result = await db.request()
       .input('skip', sql.Int, skip)
       .input('take', sql.Int, take)
+      .input('includeInactive', sql.Bit, includeInactive ? 1 : 0)
       .query(`
       SELECT
         Id,
@@ -43,9 +45,11 @@ export async function GET(req: NextRequest) {
         TaxId,
         IsActive,
         CreatedAt,
-        UpdatedAt
+        UpdatedAt,
+        (SELECT ISNULL(SUM(i.BalanceDue), 0) FROM Invoices i WHERE i.ClientId = Clients.Id AND i.Status <> 'VOID') AS OutstandingBalance,
+        (SELECT COUNT(*) FROM Invoices i WHERE i.ClientId = Clients.Id AND i.Status IN ('UNPAID', 'PARTIAL')) AS OpenInvoices
       FROM Clients
-      WHERE IsActive = 1
+      WHERE IsActive = 1 OR @includeInactive = 1
       ORDER BY Name ASC
       OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY
     `);

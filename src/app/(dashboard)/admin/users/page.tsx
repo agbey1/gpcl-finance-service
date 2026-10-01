@@ -17,6 +17,13 @@ interface User {
 }
 
 
+// Mirrors the server rule in lib/validation.ts.
+const passwordProblem = (pw: string): string =>
+  pw.length < 10 ? 'Password must be at least 10 characters long.'
+    : !/[A-Za-z]/.test(pw) ? 'Password must contain a letter.'
+    : !/[0-9]/.test(pw) ? 'Password must contain a number.'
+    : '';
+
 export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string }[]>([]);
@@ -85,7 +92,7 @@ export default function UserManagementPage() {
             roleId: u.role,
             roleName: roleLabel(u.role),
             status: u.status || (u.isActive ? 'ACTIVE' : 'INACTIVE'),
-            lastLogin: u.lastLogin || 'Never',
+            lastLogin: u.lastLogin ? `${u.lastLogin.slice(0, 10)} ${u.lastLogin.slice(11, 16)} GMT` : 'Never',
             createdAt: u.createdAt,
           };
         });
@@ -156,8 +163,8 @@ export default function UserManagementPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setFormError('Password must be at least 6 characters long.');
+    if (passwordProblem(newPassword)) {
+      setFormError(passwordProblem(newPassword));
       return;
     }
 
@@ -234,8 +241,8 @@ export default function UserManagementPage() {
     }
 
     if (editPassword) {
-      if (editPassword.length < 6) {
-        setEditFormError('New password must be at least 6 characters long.');
+      if (passwordProblem(editPassword)) {
+        setEditFormError(passwordProblem(editPassword));
         return;
       }
       if (editPassword !== editConfirmPassword) {
@@ -473,7 +480,7 @@ export default function UserManagementPage() {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showNewPassword ? 'text' : 'password'}
-                    placeholder="Min 6 characters (e.g. Password123!)"
+                    placeholder="At least 10 characters, with a letter and a number"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     style={{ width: '100%', padding: '9px 36px 9px 9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}

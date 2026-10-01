@@ -61,6 +61,7 @@ export default function InvoicesPage() {
   // Form state
   const [clientId, setClientId] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(todayIso);
   const [lineItems, setLineItems] = useState<LineItem[]>([{ id: 1, description: '', qty: 1, unitPrice: 0 }]);
   const [saving, setSaving] = useState(false);
   // One key per form, so a double submit or retry cannot post the invoice twice.
@@ -73,7 +74,7 @@ export default function InvoicesPage() {
     try {
       const [inv, cl] = await Promise.all([
         api<{ invoices: InvoiceRow[] }>('/api/v1/invoices/query?take=200'),
-        api<{ clients: Client[] }>('/api/v1/clients?take=100'),
+        api<{ clients: Client[] }>('/api/v1/clients?take=1000'),
       ]);
       setInvoices(inv.invoices);
       setClients(cl.clients);
@@ -112,6 +113,7 @@ export default function InvoicesPage() {
   const resetForm = () => {
     setClientId('');
     setDueDate('');
+    setInvoiceDate(todayIso());
     setLineItems([{ id: 1, description: '', qty: 1, unitPrice: 0 }]);
     setErrorMsg('');
     setSubmitKey(newKey());
@@ -128,6 +130,7 @@ export default function InvoicesPage() {
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submitKey },
         body: JSON.stringify({
           clientId: Number(clientId),
+          invoiceDate,
           ...(dueDate ? { dueDate } : {}),
           lineItems: lineItems.map((i) => ({ description: i.description.trim(), quantity: i.qty, unitPrice: i.unitPrice })),
           applyGhanaLevies: true,
@@ -401,7 +404,7 @@ export default function InvoicesPage() {
             <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>Create Sales Invoice</h2>
 
             <form onSubmit={handleCreateInvoice} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Customer / Client</label>
                   <select value={clientId} onChange={(e) => setClientId(e.target.value)} style={{ ...inputStyle, width: '100%', padding: '9px' }} required>
@@ -412,8 +415,12 @@ export default function InvoicesPage() {
                   </select>
                 </div>
                 <div>
+                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Invoice date</label>
+                  <input type="date" value={invoiceDate} max={todayIso()} required onChange={(e) => { setInvoiceDate(e.target.value); if (dueDate && dueDate < e.target.value) setDueDate(''); }} style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div>
                   <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Due date (default 30 days)</label>
-                  <input type="date" value={dueDate} min={todayIso()} onChange={(e) => setDueDate(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                  <input type="date" value={dueDate} min={invoiceDate} onChange={(e) => setDueDate(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
                 </div>
               </div>
 

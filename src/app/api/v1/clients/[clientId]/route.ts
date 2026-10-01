@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const updateClientSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  email: z.string().email().optional(),
+  email: z.union([z.string().trim().email(), z.literal('')]).optional(),
   phone: z.string().max(20).optional(),
   address: z.string().max(255).optional(),
   creditLimit: z.number().min(0).optional().nullable(),

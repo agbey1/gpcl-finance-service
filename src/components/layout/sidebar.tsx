@@ -22,14 +22,14 @@ import {
   Activity,
   Lock,
   ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+  ChevronRight, Contact } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Voucher Entry (F4-F9)', href: '/accounting/vouchers', icon: FileCheck },
+  { label: 'Voucher Entry (F4-F7)', href: '/accounting/vouchers', icon: FileCheck },
   { label: 'Chart of Accounts', href: '/accounting/accounts', icon: BookOpen },
   { label: 'Journal Entries Register', href: '/accounting/journal-entries', icon: FileText },
+  { label: 'Customers', href: '/finance/clients', icon: Contact },
   { label: 'Invoices & AR', href: '/finance/invoices', icon: CreditCard },
   { label: 'Customer Payments', href: '/finance/payments', icon: Receipt },
   { label: 'Bank Reconciliation', href: '/accounting/bank-reconciliations', icon: Landmark },

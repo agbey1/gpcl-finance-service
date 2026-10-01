@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
         ? computeLevies(subTotal)
         : { net: subTotal, vat: 0, nhis: 0, getfund: 0, gross: subTotal };
 
+      if (input.invoiceDate && input.invoiceDate.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
+        throw new ApiError(400, 'Invoice date cannot be in the future.');
+      }
       const invDate = input.invoiceDate ? parseBusinessDate(input.invoiceDate) : new Date();
       const due = input.dueDate
         ? parseBusinessDate(input.dueDate)
@@ -57,9 +60,10 @@ export async function POST(req: NextRequest) {
       const db = await getDb();
 
       const clientRes = await db.request().input('clientId', input.clientId)
-        .query('SELECT Id, Name FROM Clients WHERE Id = @clientId');
+        .query('SELECT Id, Name, IsActive FROM Clients WHERE Id = @clientId');
       const client = clientRes.recordset[0];
       if (!client) throw new ApiError(404, 'Client not found.');
+      if (!client.IsActive) throw new ApiError(409, `Customer "${client.Name}" is inactive. Reactivate it on the Customers page before invoicing.`);
 
       if (input.enforceCreditLimit) {
         const exposure = await computeCreditExposure(db, input.clientId);

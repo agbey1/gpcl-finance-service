@@ -83,7 +83,7 @@ export default function AuditLogsPage() {
         <label style={{ fontSize: '13px' }}>To <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inputStyle} /></label>
         <select value={entityType} onChange={(e) => setEntityType(e.target.value)} style={inputStyle}>
           <option value="">All entity types</option>
-          {['INVOICE', 'PAYMENT', 'CREDIT_NOTE', 'JOURNAL_ENTRY', 'CLIENT', 'USER', 'ROLE', 'SETTINGS', 'BANK_STATEMENT'].map((t) => (
+          {['INVOICE', 'PAYMENT', 'CREDIT_NOTE', 'JOURNAL_ENTRY', 'ACCOUNT', 'FINANCIAL_PERIOD', 'CLIENT', 'USER', 'ROLE', 'SETTINGS', 'BANK_STATEMENT', 'BANK_STATEMENT_LINE'].map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
