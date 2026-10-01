@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { accountBalances, naturalBalance } from '@/lib/ledger';
+import { getAccountMap } from '@/lib/accountMap';
 
 /**
  * Executive dashboard figures, all from posted ledger entries:
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     const sixMonthsStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)).toISOString().slice(0, 10);
 
     const db = await getDb();
+    const gl = await getAccountMap(db);
     const [cumulative, ytd, monthly, recent] = await Promise.all([
       accountBalances({ to: today }),
       accountBalances({ from: yearStart, to: today }),
@@ -76,7 +78,7 @@ export async function GET(req: NextRequest) {
         receivables: sum(cumulative, (r) => r.AccountType === 'ASSET' && cat(r) === 'receivables'),
         bank: sum(cumulative, (r) => r.AccountType === 'ASSET' && cat(r) === 'bank'),
         cash: sum(cumulative, (r) => r.AccountType === 'ASSET' && cat(r) === 'cash'),
-        leviesPayable: sum(cumulative, (r) => ['2100', '2102', '2103'].includes(r.AccountCode)),
+        leviesPayable: sum(cumulative, (r) => [gl.vat, gl.nhil, gl.getfund].includes(r.AccountCode)),
       },
       yearToDate: {
         from: yearStart,

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Building, Percent, Shield, Save, Check, RefreshCw } from 'lucide-react';
+import { Settings, Building, Percent, Shield, Save, Check, RefreshCw, BookOpen } from 'lucide-react';
+import GlAccountMapping from '@/components/settings/gl-account-mapping';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'COMPANY' | 'TAX' | 'ACCOUNTING' | 'SECURITY'>('COMPANY');
+  const [activeTab, setActiveTab] = useState<'COMPANY' | 'TAX' | 'ACCOUNTING' | 'GL_ACCOUNTS' | 'SECURITY'>('COMPANY');
   const [savedNotice, setSavedNotice] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -124,10 +125,12 @@ export default function SettingsPage() {
             <RefreshCw size={16} />
             Reload
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            <Save size={16} />
-            {saving ? 'Saving...' : 'Save Configurations'}
-          </button>
+          {activeTab !== 'GL_ACCOUNTS' && (
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              <Save size={16} />
+              {saving ? 'Saving...' : 'Save Configurations'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -144,6 +147,7 @@ export default function SettingsPage() {
           { id: 'COMPANY', label: 'Company Profile', icon: Building },
           { id: 'TAX', label: 'Statutory Levies & Tax Rates', icon: Percent },
           { id: 'ACCOUNTING', label: 'General Ledger Policies', icon: Settings },
+          { id: 'GL_ACCOUNTS', label: 'GL Account Mapping', icon: BookOpen },
           { id: 'SECURITY', label: 'Security & Session', icon: Shield },
         ].map(tab => {
           const Icon = tab.icon;
@@ -246,6 +250,9 @@ export default function SettingsPage() {
           {activeTab === 'TAX' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Ghana Statutory Tax & Levy Rates</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                Reference values only. Invoices currently apply fixed rates of VAT 15%, NHIL 2.5% and GETFund 2.5%; changing these fields does not change invoice calculations.
+              </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
@@ -333,6 +340,8 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          {activeTab === 'GL_ACCOUNTS' && <GlAccountMapping />}
 
           {activeTab === 'SECURITY' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

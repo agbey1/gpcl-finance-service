@@ -8,6 +8,7 @@ import { ApiError, errorResponse, parseBody, withIdempotency } from '@/lib/apiEr
 import { parseBusinessDate, businessDate } from '@/lib/dates';
 import { logAudit } from '@/lib/auditLog';
 import { computeCreditExposure } from '@/lib/creditLimit';
+import { getAccountMap } from '@/lib/accountMap';
 
 const money = z.number().finite().max(1e12);
 
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const gl = await getAccountMap(db);
       const tx = new sql.Transaction(db);
       await tx.begin();
       let invoiceId: number;
@@ -116,12 +118,12 @@ export async function POST(req: NextRequest) {
         }
 
         const lines: JournalLine[] = [
-          { accountCode: '1100', description: `Trade Receivables: ${invoiceNumber}`, debit: levies.gross },
-          { accountCode: '4001', description: `Sales Revenue: ${invoiceNumber}`, credit: levies.net },
+          { accountCode: gl.receivables, description: `Trade Receivables: ${invoiceNumber}`, debit: levies.gross },
+          { accountCode: gl.revenue, description: `Sales Revenue: ${invoiceNumber}`, credit: levies.net },
         ];
-        if (levies.vat > 0) lines.push({ accountCode: '2100', description: `VAT on ${invoiceNumber}`, credit: levies.vat });
-        if (levies.nhis > 0) lines.push({ accountCode: '2102', description: `NHIL on ${invoiceNumber}`, credit: levies.nhis });
-        if (levies.getfund > 0) lines.push({ accountCode: '2103', description: `GETFund on ${invoiceNumber}`, credit: levies.getfund });
+        if (levies.vat > 0) lines.push({ accountCode: gl.vat, description: `VAT on ${invoiceNumber}`, credit: levies.vat });
+        if (levies.nhis > 0) lines.push({ accountCode: gl.nhil, description: `NHIL on ${invoiceNumber}`, credit: levies.nhis });
+        if (levies.getfund > 0) lines.push({ accountCode: gl.getfund, description: `GETFund on ${invoiceNumber}`, credit: levies.getfund });
 
         const glResult = await postJournalInTx(tx, db, {
           entryDate: invDate,

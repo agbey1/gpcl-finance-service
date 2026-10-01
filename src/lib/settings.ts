@@ -33,58 +33,68 @@ const defaultSettings: SystemSettingsConfig = {
   rateLimit: 100,
 };
 
-export async function getSystemSettings(): Promise<SystemSettingsConfig> {
-  try {
-    const db = await getDb();
-    const result = await db.request().query('SELECT SettingKey, SettingValue FROM SystemSettings');
+type SettingKey = keyof SystemSettingsConfig;
 
-    const config: any = { ...defaultSettings };
-    if (result.recordset) {
-      result.recordset.forEach((row: any) => {
-        const key = row.SettingKey;
-        const val = row.SettingValue;
+// Database keys/types as seeded by migration 007.
+const STORAGE: Record<SettingKey, { key: string; type: string }> = {
+  companyName: { key: 'company_name', type: 'company' },
+  tin: { key: 'company_tin', type: 'company' },
+  currency: { key: 'company_currency', type: 'company' },
+  fyStart: { key: 'fy_start_month', type: 'company' },
+  vatRate: { key: 'tax_vat_rate', type: 'tax' },
+  nhilRate: { key: 'tax_nhil_rate', type: 'tax' },
+  getfundRate: { key: 'tax_getfund_rate', type: 'tax' },
+  whtRate: { key: 'tax_wht_rate', type: 'tax' },
+  tolerance: { key: 'gl_imbalance_tolerance', type: 'accounting' },
+  autoPostGrn: { key: 'gl_autopost_grn', type: 'accounting' },
+  allowOverdue: { key: 'gl_allow_overdue', type: 'accounting' },
+  jwtTimeout: { key: 'jwt_timeout_hours', type: 'security' },
+  rateLimit: { key: 'api_rate_limit_per_minute', type: 'security' },
+};
 
-        if (key in defaultSettings) {
-          if (typeof defaultSettings[key as keyof SystemSettingsConfig] === 'boolean') {
-            config[key] = val === 'true' || val === '1';
-          } else if (typeof defaultSettings[key as keyof SystemSettingsConfig] === 'number') {
-            const parsed = parseFloat(val);
-            config[key] = isNaN(parsed) ? defaultSettings[key as keyof SystemSettingsConfig] : parsed;
-          } else {
-            config[key] = val;
-          }
-        }
-      });
-    }
+const BY_STORAGE_KEY = new Map(Object.entries(STORAGE).map(([field, s]) => [s.key, field as SettingKey]));
 
-    return config;
-  } catch (err) {
-    console.error('Failed to load system settings from DB, using defaults:', err);
-    return defaultSettings;
+function parseValue(field: SettingKey, val: string): SystemSettingsConfig[SettingKey] {
+  const def = defaultSettings[field];
+  if (typeof def === 'boolean') return val === 'true' || val === '1';
+  if (typeof def === 'number') {
+    const n = parseFloat(val);
+    return Number.isFinite(n) ? n : def;
   }
+  return val;
 }
 
-export async function updateSystemSettings(newSettings: Partial<SystemSettingsConfig>, userId: number) {
+export async function getSystemSettings(): Promise<SystemSettingsConfig> {
   const db = await getDb();
+  const result = await db.request().query('SELECT SettingKey, SettingValue FROM SystemSettings');
+  const config: Record<string, unknown> = { ...defaultSettings };
+  for (const row of result.recordset as { SettingKey: string; SettingValue: string }[]) {
+    const field = BY_STORAGE_KEY.get(row.SettingKey);
+    if (field) config[field] = parseValue(field, row.SettingValue);
+  }
+  return config as unknown as SystemSettingsConfig;
+}
 
-  for (const [key, val] of Object.entries(newSettings)) {
+/** Saves known settings only; unknown keys (including gl.* account mappings) are ignored. */
+export async function updateSystemSettings(newSettings: Record<string, unknown>, userId: number) {
+  const db = await getDb();
+  for (const field of Object.keys(STORAGE) as SettingKey[]) {
+    const val = newSettings[field];
     if (val === undefined || val === null) continue;
-    const strVal = String(val);
-
+    if (typeof defaultSettings[field] === 'number' && !Number.isFinite(Number(val))) continue;
+    const { key, type } = STORAGE[field];
     await db.request()
       .input('key', sql.NVarChar, key)
-      .input('val', sql.NVarChar, strVal)
+      .input('val', sql.NVarChar, String(val))
+      .input('type', sql.NVarChar, type)
       .input('userId', sql.Int, userId)
       .query(`
         IF EXISTS (SELECT 1 FROM SystemSettings WHERE SettingKey = @key)
-          UPDATE SystemSettings
-          SET SettingValue = @val, UpdatedAt = GETDATE(), UpdatedBy = @userId
-          WHERE SettingKey = @key
+          UPDATE SystemSettings SET SettingValue = @val, UpdatedAt = GETDATE(), UpdatedBy = @userId WHERE SettingKey = @key
         ELSE
-          INSERT INTO SystemSettings (SettingKey, SettingValue, UpdatedAt, UpdatedBy)
-          VALUES (@key, @val, GETDATE(), @userId)
+          INSERT INTO SystemSettings (SettingKey, SettingValue, SettingType, UpdatedAt, UpdatedBy)
+          VALUES (@key, @val, @type, GETDATE(), @userId)
       `);
   }
-
   return getSystemSettings();
 }

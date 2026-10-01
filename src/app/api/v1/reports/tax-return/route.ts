@@ -3,14 +3,8 @@ import { getDb } from '@/lib/db';
 import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { accountBalances } from '@/lib/ledger';
 import { VAT_RATE, NHIS_RATE, GETFUND_RATE } from '@/lib/ghanaLevies';
+import { getAccountMap } from '@/lib/accountMap';
 
-// GL accounts the invoice, void and credit-note postings use.
-const LEVY_ACCOUNTS = [
-  { code: '2100', levy: 'VAT', rate: VAT_RATE },
-  { code: '2102', levy: 'NHIL', rate: NHIS_RATE },
-  { code: '2103', levy: 'GETFund', rate: GETFUND_RATE },
-] as const;
-const SALES_ACCOUNT = '4001';
 
 /**
  * Output levies for a period, taken from the general ledger so that voids and
@@ -33,7 +27,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ status: 'ERROR', message: '`from` must not be after `to`.' }, { status: 400 });
     }
 
-    const rows = await accountBalances({ from, to });
+    const [rows, gl] = await Promise.all([accountBalances({ from, to }), getAccountMap()]);
+    // GL accounts the invoice, void and credit-note postings use.
+    const LEVY_ACCOUNTS = [
+      { code: gl.vat, levy: 'VAT', rate: VAT_RATE },
+      { code: gl.nhil, levy: 'NHIL', rate: NHIS_RATE },
+      { code: gl.getfund, levy: 'GETFund', rate: GETFUND_RATE },
+    ];
+    const SALES_ACCOUNT = gl.revenue;
     const credit = (code: string) => {
       const r = rows.find((x) => x.AccountCode === code);
       return r ? Math.round((r.TotalCredit - r.TotalDebit) * 100) / 100 : 0;

@@ -6,6 +6,7 @@ import { validateApiAuth } from '@/lib/apiAuth';
 import { ApiError, errorResponse } from '@/lib/apiErrors';
 import { businessDate, parseBusinessDate } from '@/lib/dates';
 import { logAudit } from '@/lib/auditLog';
+import { getAccountMap } from '@/lib/accountMap';
 
 const voidSchema = z.object({
   reason: z.string().trim().min(3, 'A reason is required to void an invoice.').max(400),
@@ -31,6 +32,7 @@ export async function POST(
     const vDate = voidDate ? parseBusinessDate(voidDate) : new Date();
 
     const db = await getDb();
+    const gl = await getAccountMap(db);
     const tx = new sql.Transaction(db);
     await tx.begin();
     let invoice: {
@@ -67,12 +69,12 @@ export async function POST(
       // Mirror of the original posting: debit revenue and each tax liability, credit AR.
       const ref = invoice.InvoiceNumber;
       const lines: JournalLine[] = [
-        { accountCode: '4001', description: `Void Invoice Reversal: ${ref}`, debit: Number(invoice.SubTotal) },
+        { accountCode: gl.revenue, description: `Void Invoice Reversal: ${ref}`, debit: Number(invoice.SubTotal) },
       ];
-      if (Number(invoice.VatAmount) > 0) lines.push({ accountCode: '2100', description: `VAT reversal: ${ref}`, debit: Number(invoice.VatAmount) });
-      if (Number(invoice.NhisAmount) > 0) lines.push({ accountCode: '2102', description: `NHIL reversal: ${ref}`, debit: Number(invoice.NhisAmount) });
-      if (Number(invoice.GetfundAmount) > 0) lines.push({ accountCode: '2103', description: `GETFund reversal: ${ref}`, debit: Number(invoice.GetfundAmount) });
-      lines.push({ accountCode: '1100', description: `AR Cancellation: ${ref}`, credit: Number(invoice.TotalAmount) });
+      if (Number(invoice.VatAmount) > 0) lines.push({ accountCode: gl.vat, description: `VAT reversal: ${ref}`, debit: Number(invoice.VatAmount) });
+      if (Number(invoice.NhisAmount) > 0) lines.push({ accountCode: gl.nhil, description: `NHIL reversal: ${ref}`, debit: Number(invoice.NhisAmount) });
+      if (Number(invoice.GetfundAmount) > 0) lines.push({ accountCode: gl.getfund, description: `GETFund reversal: ${ref}`, debit: Number(invoice.GetfundAmount) });
+      lines.push({ accountCode: gl.receivables, description: `AR Cancellation: ${ref}`, credit: Number(invoice.TotalAmount) });
 
       const glResult = await postJournalInTx(tx, db, {
         entryDate: vDate,

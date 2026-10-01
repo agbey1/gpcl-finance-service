@@ -6,6 +6,7 @@ import { validateApiAuth } from '@/lib/apiAuth';
 import { ApiError, errorResponse, parseBody, withIdempotency } from '@/lib/apiErrors';
 import { businessDate, parseBusinessDate } from '@/lib/dates';
 import { logAudit } from '@/lib/auditLog';
+import { getAccountMap } from '@/lib/accountMap';
 
 const PAYMENT_METHODS = ['BANK_TRANSFER', 'CASH', 'CHEQUE', 'MOBILE_MONEY'] as const;
 
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         .query('SELECT Id FROM Clients WHERE Id = @clientId');
       if (!clientRes.recordset.length) throw new ApiError(404, 'Client not found.');
 
+      const gl = await getAccountMap(db);
       const tx = new sql.Transaction(db);
       await tx.begin();
       let paymentId: number;
@@ -115,13 +117,13 @@ export async function POST(req: NextRequest) {
           `);
         paymentId = payRes.recordset[0].Id;
 
-        // Debit Bank (1002) for transfers or banked receipts, otherwise Cash (1001);
-        // credit Trade Receivables (1100). Any overpayment leaves a credit balance
+        // Debit the mapped bank account for transfers or banked receipts, otherwise cash;
+        // credit trade receivables. Any overpayment leaves a credit balance
         // on AR matching the open credit note.
-        const assetAccountCode = input.paymentMethod === 'BANK_TRANSFER' || input.bankAccountId ? '1002' : '1001';
+        const assetAccountCode = input.paymentMethod === 'BANK_TRANSFER' || input.bankAccountId ? gl.bank : gl.cash;
         const lines: JournalLine[] = [
           { accountCode: assetAccountCode, description: `Payment Received: ${paymentNumber}`, debit: amount },
-          { accountCode: '1100', description: `AR Settlement: ${paymentNumber}`, credit: amount },
+          { accountCode: gl.receivables, description: `AR Settlement: ${paymentNumber}`, credit: amount },
         ];
         const glResult = await postJournalInTx(tx, db, {
           entryDate: payDate,

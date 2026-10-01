@@ -7,6 +7,7 @@ import { validateApiAuth } from '@/lib/apiAuth';
 import { ApiError, errorResponse, parseBody, withIdempotency } from '@/lib/apiErrors';
 import { businessDate, parseBusinessDate } from '@/lib/dates';
 import { logAudit } from '@/lib/auditLog';
+import { getAccountMap } from '@/lib/accountMap';
 
 const createCreditNoteSchema = z.object({
   clientId: z.number().int().positive(),
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       const invoiceId = input.invoiceId ?? null;
 
       const db = await getDb();
+      const gl = await getAccountMap(db);
       const tx = new sql.Transaction(db);
       await tx.begin();
       let creditNoteId: number;
@@ -95,12 +97,12 @@ export async function POST(req: NextRequest) {
         creditNoteId = cnRes.recordset[0].Id;
 
         const lines: JournalLine[] = [
-          { accountCode: '4001', description: `Credit Note Adjustment: ${creditNoteNumber}`, debit: split.net / 100 },
+          { accountCode: gl.revenue, description: `Credit Note Adjustment: ${creditNoteNumber}`, debit: split.net / 100 },
         ];
-        if (split.vat > 0) lines.push({ accountCode: '2100', description: `VAT on ${creditNoteNumber}`, debit: split.vat / 100 });
-        if (split.nhis > 0) lines.push({ accountCode: '2102', description: `NHIL on ${creditNoteNumber}`, debit: split.nhis / 100 });
-        if (split.getfund > 0) lines.push({ accountCode: '2103', description: `GETFund on ${creditNoteNumber}`, debit: split.getfund / 100 });
-        lines.push({ accountCode: '1100', description: `AR Credit Adjustment: ${creditNoteNumber}`, credit: amount });
+        if (split.vat > 0) lines.push({ accountCode: gl.vat, description: `VAT on ${creditNoteNumber}`, debit: split.vat / 100 });
+        if (split.nhis > 0) lines.push({ accountCode: gl.nhil, description: `NHIL on ${creditNoteNumber}`, debit: split.nhis / 100 });
+        if (split.getfund > 0) lines.push({ accountCode: gl.getfund, description: `GETFund on ${creditNoteNumber}`, debit: split.getfund / 100 });
+        lines.push({ accountCode: gl.receivables, description: `AR Credit Adjustment: ${creditNoteNumber}`, credit: amount });
 
         const glResult = await postJournalInTx(tx, db, {
           entryDate: cnDate,
