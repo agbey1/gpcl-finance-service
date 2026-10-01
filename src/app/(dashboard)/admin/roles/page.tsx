@@ -2,13 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ShieldCheck, Plus, Check, X, RefreshCw, Edit2, Trash2 } from 'lucide-react';
-
-interface RolePermission {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-}
+import { PERMISSIONS } from '@/lib/permissionCatalog';
 
 interface Role {
   id: string;
@@ -19,25 +13,6 @@ interface Role {
   isSystem?: boolean;
 }
 
-const allPermissions: RolePermission[] = [
-  { id: 'accounting.view', name: 'View General Ledger', description: 'View Chart of Accounts, Journal Entries, and Financial Reports', category: 'Accounting' },
-  { id: 'accounting.journal.post', name: 'Post Journal Entries', description: 'Create and post manual or automated double-entry journals', category: 'Accounting' },
-  { id: 'accounting.journal.reverse', name: 'Reverse Journals', description: 'Reverse posted GL journal entries with audit trail', category: 'Accounting' },
-  { id: 'accounting.period.close', name: 'Close Financial Periods', description: 'Lock financial years and close accounting periods', category: 'Accounting' },
-  { id: 'accounting.budget.view', name: 'View Budgets', description: 'View budget tracking and variance analysis', category: 'Accounting' },
-  { id: 'accounting.budget.create', name: 'Create Budgets', description: 'Create and manage budgets', category: 'Accounting' },
-  { id: 'finance.invoices.view', name: 'View Invoices', description: 'View customer invoices and AR balances', category: 'Invoicing & AR' },
-  { id: 'finance.invoices.create', name: 'Create Invoices', description: 'Generate customer invoices with Ghana statutory levies', category: 'Invoicing & AR' },
-  { id: 'finance.payments.view', name: 'View Payments', description: 'View payment records and history', category: 'Invoicing & AR' },
-  { id: 'finance.payments.create', name: 'Record Payments', description: 'Record customer payment receipts and settle invoice balances', category: 'Invoicing & AR' },
-  { id: 'finance.clients.view', name: 'View Clients', description: 'View client information and credit limits', category: 'Invoicing & AR' },
-  { id: 'finance.clients.create', name: 'Create Clients', description: 'Create new client accounts', category: 'Invoicing & AR' },
-  { id: 'finance.clients.update', name: 'Update Clients', description: 'Modify client information', category: 'Invoicing & AR' },
-  { id: 'finance.clients.delete', name: 'Delete Clients', description: 'Deactivate client accounts', category: 'Invoicing & AR' },
-  { id: 'reconciliation.manage', name: 'Manage Bank Reconciliation', description: 'Upload statement CSVs and match bank transactions', category: 'Banking' },
-  { id: 'accounting.audit.view', name: 'View Audit Logs', description: 'View audit trail of all system changes', category: 'Administration' },
-  { id: 'admin.roles.manage', name: 'Manage Roles & RBAC', description: 'Create roles and assign granular system permissions', category: 'Administration' },
-];
 
 export default function RolesPermissionsPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -66,7 +41,7 @@ export default function RolesPermissionsPage() {
 
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
-  async function fetchRoles() {
+  async function fetchRoles(preferId?: string) {
     setLoading(true);
     try {
       const response = await fetch('/api/v1/roles', {
@@ -86,9 +61,8 @@ export default function RolesPermissionsPage() {
         setRoles(loadedRoles);
 
         if (loadedRoles.length > 0) {
-          const currentSelected = selectedRole
-            ? loadedRoles.find(r => r.id === selectedRole.id) || loadedRoles[0]
-            : loadedRoles[0];
+          const wantId = preferId ?? selectedRole?.id;
+          const currentSelected = loadedRoles.find(r => r.id === wantId) || loadedRoles[0];
           setSelectedRole(currentSelected);
           setActivePermissions(currentSelected.permissions);
         }
@@ -168,7 +142,7 @@ export default function RolesPermissionsPage() {
         body: JSON.stringify({
           name: newRoleName.trim(),
           description: newRoleDescription.trim(),
-          permissions: activePermissions.length > 0 ? activePermissions : [],
+          permissions: [],
         }),
       });
 
@@ -177,12 +151,13 @@ export default function RolesPermissionsPage() {
         setShowCreateModal(false);
         setNewRoleName('');
         setNewRoleDescription('');
-        setSaveNotice(`New role "${data.role.name}" created successfully!`);
-        setTimeout(() => setSaveNotice(null), 4000);
-        fetchRoles();
+        setSaveNotice(`Role "${data.role.name}" created with no permissions. Tick the permissions it needs and click Save Permissions.`);
+        setTimeout(() => setSaveNotice(null), 8000);
+        fetchRoles(data.role.id);
       } else {
         const data = await response.json();
-        alert(`Error: ${data.message || 'Failed to create role'}`);
+        const detail = data.errors ? ` ${Object.values(data.errors).flat().join(' ')}` : '';
+        alert(`Error: ${data.message || 'Failed to create role'}${detail}`);
       }
     } catch (error: any) {
       alert(`Failed to create role: ${error.message}`);
@@ -206,7 +181,7 @@ export default function RolesPermissionsPage() {
 
     setUpdating(true);
     try {
-      const response = await fetch(`/api/v1/roles/${editingRole.id}`, {
+      const response = await fetch(`/api/v1/roles/${encodeURIComponent(editingRole.id)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -218,10 +193,11 @@ export default function RolesPermissionsPage() {
       });
 
       if (response.ok) {
+        const data = await response.json();
         setShowEditModal(false);
         setSaveNotice(`Role "${editRoleName}" updated successfully!`);
         setTimeout(() => setSaveNotice(null), 4000);
-        fetchRoles();
+        fetchRoles(selectedRole?.id === editingRole.id ? data.role.id : undefined);
       } else {
         const data = await response.json();
         alert(`Error: ${data.message || 'Failed to update role'}`);
@@ -243,7 +219,7 @@ export default function RolesPermissionsPage() {
 
     setDeleting(true);
     try {
-      const response = await fetch(`/api/v1/roles/${deletingRole.id}`, {
+      const response = await fetch(`/api/v1/roles/${encodeURIComponent(deletingRole.id)}`, {
         method: 'DELETE',
       });
 
@@ -278,7 +254,7 @@ export default function RolesPermissionsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn btn-secondary" onClick={fetchRoles} disabled={loading}>
+          <button className="btn btn-secondary" onClick={() => fetchRoles()} disabled={loading}>
             <RefreshCw size={16} />
             Refresh
           </button>
@@ -479,9 +455,13 @@ export default function RolesPermissionsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: '700' }}>Permissions for {selectedRole.name}</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Toggle permissions and click Save Permissions to update database access level.</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  {selectedRole.id === 'ADMIN'
+                    ? 'Finance Administrators have full access by design; these permissions cannot be changed.'
+                    : 'Toggle permissions and click Save Permissions. Users pick up changes at their next sign-in.'}
+                </p>
               </div>
-              <button className="btn btn-primary" onClick={handleSavePermissions} disabled={saving}>
+              <button className="btn btn-primary" onClick={handleSavePermissions} disabled={saving || selectedRole.id === 'ADMIN'} title={selectedRole.id === 'ADMIN' ? 'Finance Administrators have full access by design' : undefined}>
                 <Check size={16} />
                 {saving ? 'Saving...' : 'Save Permissions'}
               </button>
@@ -494,7 +474,7 @@ export default function RolesPermissionsPage() {
                     {category} Modules
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {allPermissions.filter(p => p.category === category).map(perm => {
+                    {PERMISSIONS.filter(p => p.category === category).map(perm => {
                       const isGranted = activePermissions.includes(perm.id);
                       return (
                         <div

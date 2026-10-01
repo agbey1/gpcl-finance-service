@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { roleLabel, SUPER_ADMIN_ROLE } from '@/lib/permissionCatalog';
 import { Users, Plus, Shield, Mail, CheckCircle, XCircle, Edit3, Eye, EyeOff, Key, Lock, AlertCircle } from 'lucide-react';
 import Pagination from '@/components/ui/pagination';
 
@@ -15,15 +16,29 @@ interface User {
   createdAt?: string;
 }
 
-const availableRoles = [
-  { id: 'ADMIN', name: 'Finance Administrator' },
-  { id: 'SENIOR_ACCOUNTANT', name: 'Senior Accountant' },
-  { id: 'ACCOUNTS_RECEIVABLE_CLERK', name: 'AR Clerk' },
-  { id: 'AUDITOR', name: 'Financial Auditor' },
-];
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string }[]>([]);
+  const [actorIsSuperAdmin, setActorIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/roles')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.roles) {
+          setAvailableRoles([
+            { id: SUPER_ADMIN_ROLE, name: roleLabel(SUPER_ADMIN_ROLE) },
+            ...d.roles.map((r: { id: string; name: string }) => ({ id: r.id, name: r.name })),
+          ]);
+        }
+      })
+      .catch(() => {});
+    fetch('/api/v1/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setActorIsSuperAdmin(d?.user?.role === SUPER_ADMIN_ROLE))
+      .catch(() => {});
+  }, []);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -63,13 +78,12 @@ export default function UserManagementPage() {
       const data = await res.json();
       if (data.status === 'SUCCESS' && Array.isArray(data.users)) {
         const mappedUsers: User[] = data.users.map((u: any) => {
-          const roleObj = availableRoles.find(r => r.id === u.role);
           return {
             id: u.id,
             name: u.name,
             email: u.email,
             roleId: u.role,
-            roleName: roleObj ? roleObj.name : u.role,
+            roleName: roleLabel(u.role),
             status: u.status || (u.isActive ? 'ACTIVE' : 'INACTIVE'),
             lastLogin: u.lastLogin || 'Never',
             createdAt: u.createdAt,
@@ -101,8 +115,7 @@ export default function UserManagementPage() {
       });
       const data = await res.json();
       if (data.status === 'SUCCESS') {
-        const roleObj = availableRoles.find(r => r.id === newRoleId);
-        setUsers(users.map(u => u.id === userId ? { ...u, roleId: newRoleId, roleName: roleObj ? roleObj.name : newRoleId } : u));
+        setUsers(users.map(u => u.id === userId ? { ...u, roleId: newRoleId, roleName: roleLabel(newRoleId) } : u));
         setSuccessMessage('User role updated successfully.');
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
@@ -169,13 +182,12 @@ export default function UserManagementPage() {
 
       const data = await res.json();
       if (data.status === 'SUCCESS' && data.user) {
-        const roleObj = availableRoles.find(r => r.id === data.user.role);
         const newUser: User = {
           id: data.user.id,
           name: data.user.name,
           email: data.user.email,
           roleId: data.user.role,
-          roleName: roleObj ? roleObj.name : data.user.role,
+          roleName: roleLabel(data.user.role),
           status: data.user.status || 'ACTIVE',
           lastLogin: 'Never',
         };
@@ -252,13 +264,12 @@ export default function UserManagementPage() {
 
       const data = await res.json();
       if (data.status === 'SUCCESS' && data.user) {
-        const roleObj = availableRoles.find(r => r.id === data.user.role);
         setUsers(users.map(u => u.id === editingUser.id ? {
           ...u,
           name: data.user.name,
           email: data.user.email,
           roleId: data.user.role,
-          roleName: roleObj ? roleObj.name : data.user.role,
+          roleName: roleLabel(data.user.role),
           status: data.user.status || (data.user.isActive ? 'ACTIVE' : 'INACTIVE'),
         } : u));
 
@@ -350,7 +361,7 @@ export default function UserManagementPage() {
                         }}
                       >
                         {availableRoles.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
+                          <option key={r.id} value={r.id} disabled={r.id === SUPER_ADMIN_ROLE && !actorIsSuperAdmin}>{r.name}</option>
                         ))}
                       </select>
                     </td>
@@ -452,7 +463,7 @@ export default function UserManagementPage() {
                   style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                 >
                   {availableRoles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
+                    <option key={r.id} value={r.id} disabled={r.id === SUPER_ADMIN_ROLE && !actorIsSuperAdmin}>{r.name}</option>
                   ))}
                 </select>
               </div>
@@ -556,7 +567,7 @@ export default function UserManagementPage() {
                   style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                 >
                   {availableRoles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
+                    <option key={r.id} value={r.id} disabled={r.id === SUPER_ADMIN_ROLE && !actorIsSuperAdmin}>{r.name}</option>
                   ))}
                 </select>
               </div>
