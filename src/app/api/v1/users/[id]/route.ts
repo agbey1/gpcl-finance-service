@@ -6,6 +6,7 @@ import { getDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { logAudit } from '@/lib/auditLog';
 import { mockUsersStore, UserRecord } from '../route';
+import { roleAssignmentError } from '@/lib/roles';
 
 export async function GET(
   req: NextRequest,
@@ -112,6 +113,33 @@ export async function PATCH(
       `);
 
       if (checkUser.recordset && checkUser.recordset.length > 0) {
+        const target = checkUser.recordset[0];
+        const actorRole = session!.role;
+        if (target.Role === 'SUPER_ADMIN' && actorRole !== 'SUPER_ADMIN') {
+          return NextResponse.json(
+            { status: 'ERROR', message: 'Only a Super Administrator can modify a Super Administrator account.' },
+            { status: 403 }
+          );
+        }
+        if (updates.role !== undefined && updates.role !== target.Role) {
+          const roleErr = await roleAssignmentError(db, updates.role, actorRole);
+          if (roleErr) return NextResponse.json({ status: 'ERROR', message: roleErr.message }, { status: roleErr.status });
+        }
+        const demotesOrDisables =
+          target.Role === 'SUPER_ADMIN' && target.IsActive &&
+          ((updates.role !== undefined && updates.role !== 'SUPER_ADMIN') || updates.isActive === false);
+        if (demotesOrDisables) {
+          const others = await db.request().input('id', userId).query(
+            `SELECT COUNT(*) AS n FROM Users WHERE Role = 'SUPER_ADMIN' AND IsActive = 1 AND Id <> @id`
+          );
+          if (!others.recordset[0].n) {
+            return NextResponse.json(
+              { status: 'ERROR', message: 'This is the last active Super Administrator; create another before demoting or deactivating it.' },
+              { status: 409 }
+            );
+          }
+        }
+
         // If email is changing, check duplicate
         if (updates.email) {
           const lowerEmail = updates.email.toLowerCase().trim();
@@ -266,12 +294,39 @@ export async function DELETE(
 
   try {
     const db = await getDb();
-    const checkRes = await db.request().input('id', userId).query(`SELECT Id FROM Users WHERE Id = @id`);
+    const checkRes = await db.request().input('id', userId).query(`SELECT Id, Email, Role, IsActive FROM Users WHERE Id = @id`);
 
     if (checkRes.recordset && checkRes.recordset.length > 0) {
       userFoundInDb = true;
+      const target = checkRes.recordset[0];
+      if (target.Role === 'SUPER_ADMIN') {
+        if (session!.role !== 'SUPER_ADMIN') {
+          return NextResponse.json(
+            { status: 'ERROR', message: 'Only a Super Administrator can deactivate a Super Administrator account.' },
+            { status: 403 }
+          );
+        }
+        const others = await db.request().input('id', userId).query(
+          `SELECT COUNT(*) AS n FROM Users WHERE Role = 'SUPER_ADMIN' AND IsActive = 1 AND Id <> @id`
+        );
+        if (target.IsActive && !others.recordset[0].n) {
+          return NextResponse.json(
+            { status: 'ERROR', message: 'This is the last active Super Administrator; create another before deactivating it.' },
+            { status: 409 }
+          );
+        }
+      }
       await db.request().input('id', userId).query(`UPDATE Users SET IsActive = 0, UpdatedAt = GETDATE() WHERE Id = @id`);
       dbHandled = true;
+      await logAudit({
+        entityType: 'USER',
+        entityId: userId,
+        action: 'UPDATE',
+        userId: session!.userId,
+        oldValue: { isActive: Boolean(target.IsActive) },
+        newValue: { isActive: false },
+        description: `User account deactivated: ${target.Email}`,
+      });
       return NextResponse.json({ status: 'SUCCESS', message: 'User account deactivated successfully' });
     } else if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ status: 'ERROR', message: 'User account not found' }, { status: 404 });

@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/password';
 import { getDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { logAudit } from '@/lib/auditLog';
+import { roleAssignmentError } from '@/lib/roles';
 
 export interface UserRecord {
   id: number;
@@ -119,6 +120,9 @@ export async function POST(req: NextRequest) {
           { status: 409 }
         );
       }
+
+      const roleErr = await roleAssignmentError(db, role, session!.role);
+      if (roleErr) return NextResponse.json({ status: 'ERROR', message: roleErr.message }, { status: roleErr.status });
 
       const insertResult = await db.request()
         .input('email', lowerEmail)
