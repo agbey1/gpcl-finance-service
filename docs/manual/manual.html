@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>GPCL Finance Service — User Manual</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 22mm 18mm;
+    @top-right { content: "GPCL Finance Service · User Manual"; font: 8pt "Segoe UI", Arial, sans-serif; color: #7a8696; }
+    @bottom-center { content: "Page " counter(page); font: 8pt "Segoe UI", Arial, sans-serif; color: #7a8696; }
+  }
+  @page :first { margin: 0; @top-right { content: none; } @bottom-center { content: none; } }
+
+  :root { --navy: #0b2e59; --gold: #e0a000; --ink: #1f2933; --muted: #5b6776; --line: #d8dee6; --soft: #f3f6fa; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10pt; line-height: 1.5; color: var(--ink); margin: 0; }
+
+  /* Cover */
+  .cover { height: 297mm; width: 210mm; background: var(--navy); color: #fff; position: relative; page-break-after: always; overflow: hidden; }
+  .cover .band { position: absolute; left: 0; right: 0; bottom: 0; height: 9mm; background: var(--gold); }
+  .cover .inner { padding: 38mm 24mm 0 24mm; }
+  .cover img { width: 30mm; height: 30mm; object-fit: contain; background: #fff; border-radius: 4mm; padding: 2mm; }
+  .cover .org { margin-top: 8mm; font-size: 11pt; letter-spacing: .08em; text-transform: uppercase; color: #cfe0f5; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 26mm 0 4mm; font-weight: 700; }
+  .cover .sub { font-size: 15pt; color: var(--gold); font-weight: 600; }
+  .cover .desc { margin-top: 10mm; font-size: 11pt; max-width: 140mm; color: #dbe7f5; }
+  .cover .meta { position: absolute; left: 24mm; bottom: 22mm; font-size: 9.5pt; color: #cfe0f5; line-height: 1.7; }
+
+  h1.chapter { font-size: 20pt; color: var(--navy); margin: 0 0 4mm; padding-bottom: 2.5mm; border-bottom: 2.5pt solid var(--gold); page-break-before: always; }
+  h1.chapter .num { color: var(--gold); margin-right: 3mm; }
+  h2 { font-size: 13pt; color: var(--navy); margin: 7mm 0 2mm; page-break-after: avoid; }
+  h3 { font-size: 11pt; color: var(--ink); margin: 5mm 0 1.5mm; page-break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+  .lead { font-size: 10.5pt; color: var(--muted); margin-bottom: 4mm; }
+
+  .ui { font-weight: 600; color: var(--navy); }
+  .key { display: inline-block; font: 600 8.5pt Consolas, monospace; background: #eef1f5; border: 1px solid #c5ccd6; border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 9pt; background: #eef1f5; padding: 0 3px; border-radius: 2px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; page-break-inside: auto; }
+  th { background: var(--navy); color: #fff; text-align: left; padding: 1.8mm 2.2mm; font-weight: 600; }
+  td { padding: 1.6mm 2.2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  td.r, th.r { text-align: right; }
+  td.c, th.c { text-align: center; }
+
+  .box { border-left: 3.5pt solid; border-radius: 0 4px 4px 0; padding: 2.5mm 3.5mm; margin: 3mm 0 4mm; page-break-inside: avoid; }
+  .box b.t { display: block; margin-bottom: .8mm; }
+  .tip { background: #edf7f0; border-color: #1f9d55; } .tip b.t { color: #157a41; }
+  .note { background: #eef4fb; border-color: #2c6db5; } .note b.t { color: #1f5591; }
+  .warn { background: #fdf5e6; border-color: #d98a00; } .warn b.t { color: #a96800; }
+  .stop { background: #fdeeee; border-color: #c62828; } .stop b.t { color: #a11f1f; }
+
+  ol.steps { counter-reset: s; list-style: none; padding-left: 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding-left: 9mm; margin-bottom: 2.2mm; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: .2mm; width: 5.6mm; height: 5.6mm; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 8.5pt; text-align: center; line-height: 5.6mm; }
+
+  .example { background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 3mm 4mm; margin: 3mm 0 4mm; page-break-inside: avoid; }
+  .example .h { font-weight: 700; color: var(--navy); margin-bottom: 1.5mm; }
+  .example table { margin: 1mm 0 0; background: #fff; }
+
+  .flow { display: flex; align-items: stretch; gap: 0; margin: 3mm 0 5mm; page-break-inside: avoid; }
+  .flow .s { flex: 1; background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 2.2mm; font-size: 8.5pt; text-align: center; }
+  .flow .s b { display: block; color: var(--navy); font-size: 9pt; margin-bottom: .6mm; }
+  .flow .a { width: 6mm; display: flex; align-items: center; justify-content: center; color: var(--gold); font-weight: 700; font-size: 13pt; }
+
+  .toc { page-break-after: always; }
+  .toc h1 { font-size: 20pt; color: var(--navy); border-bottom: 2.5pt solid var(--gold); padding-bottom: 2.5mm; margin: 0 0 5mm; }
+  .toc a { color: inherit; text-decoration: none; }
+  .toc .row { display: flex; align-items: baseline; padding: 1.1mm 0; }
+  .toc .row.ch { font-weight: 700; color: var(--navy); margin-top: 2.4mm; font-size: 10.5pt; }
+  .toc .row.sec { padding-left: 8mm; font-size: 9.5pt; color: var(--ink); }
+  .toc .row .dots { flex: 1; border-bottom: 1px dotted #9aa5b1; margin: 0 2mm; transform: translateY(-1mm); }
+  .toc .row .pg { min-width: 7mm; text-align: right; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  .card { border: 1px solid var(--line); border-radius: 4px; padding: 2.5mm 3mm; page-break-inside: avoid; }
+  .card b { color: var(--navy); }
+  .small { font-size: 8.5pt; color: var(--muted); }
+  .badge { display: inline-block; font-size: 7.5pt; font-weight: 700; padding: .2mm 1.6mm; border-radius: 8px; color: #fff; }
+  .b-green { background: #1f9d55; } .b-red { background: #c62828; } .b-amber { background: #d98a00; } .b-blue { background: #2c6db5; } .b-grey { background: #6b7785; }
+  .yes { color: #157a41; font-weight: 700; } .no { color: #b0b8c2; }
+  .avoid { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="inner">
+    <img src="LOGO_PATH" alt="GPCL logo">
+    <div class="org">Ghana Publishing Company Limited · Assembly Press, Accra</div>
+    <h1>GPCL Finance Service</h1>
+    <div class="sub">User Manual</div>
+    <div class="desc">A step-by-step guide to invoicing, customer receipts, vouchers, bank reconciliation, budgets, period close, statutory levy returns, financial reports and system administration.</div>
+  </div>
+  <div class="meta">
+    Version 1.0 · October 2026<br>
+    Applies to: finance.gpcllive.com<br>
+    Audience: finance staff, accountants, auditors and system administrators
+  </div>
+  <div class="band"></div>
+</section>
+
+<!-- ================= CONTENTS ================= -->
+<section class="toc">
+  <h1>Contents</h1>
+  <div id="toc-body"></div>
+</section>
+
+<!-- ================= 1 INTRODUCTION ================= -->
+<h1 class="chapter" id="ch-intro"><span class="num">1</span>Introduction</h1>
+<p class="lead">GPCL Finance Service is Ghana Publishing Company Limited's finance and accounting system. It keeps the general ledger, issues customer invoices with Ghana's statutory levies, records customer receipts, reconciles bank statements and produces the financial statements and levy returns.</p>
+
+<h2 id="s-about">About this manual</h2>
+<p>This manual explains every screen in the system and how to carry out day-to-day finance work. It is written for people who use the system, not for IT staff, so it does not cover installation, servers or databases.</p>
+<p>Screen names, buttons and fields are shown in <span class="ui">bold blue</span>, for example <span class="ui">Create New Invoice</span>. Keyboard keys look like <span class="key">F5</span>. Throughout the manual you will find these boxes:</p>
+<div class="box tip"><b class="t">Tip</b>A shortcut or good practice.</div>
+<div class="box note"><b class="t">Note</b>Background that helps you understand what the system is doing.</div>
+<div class="box warn"><b class="t">Important</b>Something that can affect your figures if done wrongly.</div>
+
+<h2 id="s-whatitdoes">What the system does</h2>
+<div class="two">
+  <div class="card"><b>Sales &amp; receivables</b><br>Create tax invoices with VAT, NHIL and GETFund calculated automatically, record customer payments, issue credit notes and void invoices raised in error.</div>
+  <div class="card"><b>General ledger</b><br>Post balanced manual journals (vouchers), keep the chart of accounts, view and reverse journals, and close accounting months.</div>
+  <div class="card"><b>Banking</b><br>Upload bank statements as CSV files, let the system match them to recorded receipts and clear the remaining lines.</div>
+  <div class="card"><b>Reporting</b><br>Dashboard, Day Book, Trial Balance, Profit &amp; Loss, Balance Sheet, Receivables Aging, budgets versus actuals and GRA levy returns.</div>
+</div>
+
+<h2 id="s-concepts">Key ideas before you start</h2>
+<h3>Everything ends up in the ledger</h3>
+<p>Every invoice, payment, credit note, void and voucher creates a <b>journal entry</b> in the general ledger at the moment you save it. You never post the same transaction twice: an invoice automatically debits Trade Receivables and credits Sales Revenue and the levy accounts. All reports and dashboard figures are read from these posted journals.</p>
+<h3>Debits must equal credits</h3>
+<p>Every journal must balance to the pesewa. The system will not save a voucher whose debits and credits differ.</p>
+<h3>Corrections, not deletions</h3>
+<p>Nothing that has been posted is deleted. Mistakes are corrected with a matching opposite entry: an invoice is <b>voided</b> or <b>credited</b>, and a manual journal is <b>reversed</b>. The original and the correction both stay visible, so the audit trail is complete.</p>
+<h3>Accounting months can be closed</h3>
+<p>Each calendar month is an accounting period. Once a month is closed, nothing dated in that month can be posted, so reported figures cannot change after the books are signed off.</p>
+<h3>Document numbers</h3>
+<p>The system numbers documents automatically, by year:</p>
+<table>
+  <tr><th>Document</th><th>Format</th><th>Example</th></tr>
+  <tr><td>Invoice</td><td class="mono">INV-YYYY-nnnnnn</td><td class="mono">INV-2026-000042</td></tr>
+  <tr><td>Customer payment / receipt</td><td class="mono">PAY-YYYY-nnnnnn</td><td class="mono">PAY-2026-000017</td></tr>
+  <tr><td>Credit note</td><td class="mono">CN-YYYY-nnnnnn</td><td class="mono">CN-2026-000003</td></tr>
+  <tr><td>Credit from an overpayment</td><td class="mono">CN-OVERPAY-YYYY-nnnnnn</td><td class="mono">CN-OVERPAY-2026-000001</td></tr>
+  <tr><td>Journal entry</td><td class="mono">JNL-YYYY-nnnnnn</td><td class="mono">JNL-2026-000315</td></tr>
+</table>
+<p>All amounts are in Ghana cedis (GHS) with two decimal places.</p>
+
+<!-- ================= 2 GETTING STARTED ================= -->
+<h1 class="chapter" id="ch-start"><span class="num">2</span>Getting Started</h1>
+
+<h2 id="s-signin">Signing in</h2>
+<ol class="steps">
+  <li>Open <b>https://finance.gpcllive.com</b> in Google Chrome, Microsoft Edge or Firefox.</li>
+  <li>Enter your <span class="ui">Email Address</span> and <span class="ui">Password</span>. Click the eye icon to show the password while you type.</li>
+  <li>Click <span class="ui">Sign In</span>. You arrive on the <span class="ui">Dashboard</span>.</li>
+</ol>
+<p>Your account is created by a system administrator, who gives you your email address and first password.</p>
+<div class="box note"><b class="t">If sign-in fails</b>
+<ul>
+  <li><b>"Invalid email address or password. Please try again."</b> Check the email address and password. Passwords are case-sensitive.</li>
+  <li><b>"Too many login attempts. Please try again later."</b> After repeated failed attempts sign-in is paused briefly. Wait about a minute and try again.</li>
+  <li>If your account has been deactivated you cannot sign in; contact your administrator.</li>
+</ul></div>
+
+<h2 id="s-session">Your session and signing out</h2>
+<p>You stay signed in for <b>8 hours</b>. After that the system returns you to the sign-in page, and any unsaved form is lost, so save your work as you go.</p>
+<p>To sign out, click the sign-out icon at the bottom of the left-hand menu, next to your name. Always sign out on shared computers.</p>
+<h3>Passwords</h3>
+<p>Passwords must be at least <b>10 characters</b> long and contain at least one letter and one number. There is no self-service password change: if you forget your password or want to change it, ask a system administrator to reset it (see <a href="#s-users">User Management</a>).</p>
+
+<h2 id="s-layout">The screen layout</h2>
+<h3>Left-hand menu</h3>
+<p>The menu lists every area of the system. Click an item to open it; the current page is highlighted. Your name and email address are shown at the bottom. Use the arrow button at the top of the menu, or the menu button in the top bar, to collapse it to icons and gain screen space.</p>
+<table>
+  <tr><th>Menu item</th><th>Used for</th><th>Chapter</th></tr>
+  <tr><td>Dashboard</td><td>Key balances, profit year to date, charts and recent postings</td><td>3</td></tr>
+  <tr><td>Voucher Entry (F4-F7)</td><td>Posting manual journals: payment, receipt, contra and journal vouchers</td><td>5</td></tr>
+  <tr><td>Chart of Accounts</td><td>Viewing and adding general ledger accounts</td><td>4</td></tr>
+  <tr><td>Journal Entries Register</td><td>Looking up and reversing journal entries</td><td>6</td></tr>
+  <tr><td>Customers</td><td>Adding and maintaining customer records</td><td>7</td></tr>
+  <tr><td>Invoices &amp; AR</td><td>Customer invoices, credit notes and voids</td><td>7</td></tr>
+  <tr><td>Customer Payments</td><td>Recording, printing and reversing customer receipts</td><td>8</td></tr>
+  <tr><td>Bank Reconciliation</td><td>Uploading and matching bank statements</td><td>9</td></tr>
+  <tr><td>Budgets vs. Actuals</td><td>Annual budgets and variance analysis</td><td>10</td></tr>
+  <tr><td>Fiscal Period Close</td><td>Closing (and re-opening) accounting months</td><td>11</td></tr>
+  <tr><td>Ghana GRA Tax Returns</td><td>Monthly VAT, NHIL and GETFund figures</td><td>12</td></tr>
+  <tr><td>Financial Reports</td><td>Day Book, Trial Balance, P&amp;L, Balance Sheet, Aging, Levy Return</td><td>13</td></tr>
+  <tr><td>User Management, Roles &amp; Permissions, System Audit Logs, System Settings</td><td>Administration</td><td>14</td></tr>
+</table>
+<div class="box note"><b class="t">Menu items you cannot use</b>Everyone sees the full menu, but what you can do depends on your role. If you open a screen your role does not allow, it shows a message such as <b>"Forbidden: Missing required permission 'finance.invoices.view'"</b>. Ask an administrator if you need access. Appendix A lists what each role can do.</div>
+
+<h3>Top bar</h3>
+<ul>
+  <li><b>Notifications (bell icon).</b> A red dot means there are alerts. The system warns you about <b>overdue customer invoices</b> (with the number and total outstanding) and when <b>last month has not been closed</b>. Click the × on an alert to dismiss it for now; it reappears the next time the page loads if the situation has not changed.</li>
+  <li><b>Light / dark theme (sun or moon icon).</b> Switches the colour scheme. Your choice is remembered on that computer.</li>
+</ul>
+
+<h3>Working with lists</h3>
+<ul>
+  <li><b>Search boxes</b> filter the list as you type.</li>
+  <li><b>Filter buttons</b> (for example invoice status or payment method) narrow the list to one category; <span class="ui">ALL</span> clears the filter.</li>
+  <li>Long lists are split into pages; use the page controls under the table.</li>
+  <li><span class="ui">Refresh</span> (circular-arrow icon) reloads the latest figures.</li>
+  <li>Many screens offer <span class="ui">PDF</span>, <span class="ui">Excel</span>, <span class="ui">CSV</span> or <span class="ui">Print</span>. Exports contain the rows currently shown by your filters.</li>
+</ul>
+<div class="box tip"><b class="t">Saving is safe to retry</b>If your connection drops while you are posting an invoice, payment or voucher, you can click the button again. The system recognises the repeated request and will not post the transaction twice.</div>
+
+<!-- ================= 3 DASHBOARD ================= -->
+<h1 class="chapter" id="ch-dash"><span class="num">3</span>Dashboard</h1>
+<p class="lead">The <span class="ui">Financial Overview</span> dashboard gives a one-page summary of the business, taken directly from the posted ledger.</p>
+
+<h2 id="s-dash-tiles">Summary tiles</h2>
+<table>
+  <tr><th>Tile</th><th>What it shows</th></tr>
+  <tr><td>Trade Receivables (AR)</td><td>Total amount customers currently owe.</td></tr>
+  <tr><td>Gross Profit (YTD)</td><td>Revenue less cost of goods sold since 1 January, with the gross margin percentage and net profit. Shown in red if negative.</td></tr>
+  <tr><td>Levies Payable (VAT/NHIL/GETFund)</td><td>Balance on the three levy liability accounts: levies charged to customers and not yet paid over.</td></tr>
+  <tr><td>Bank &amp; Cash</td><td>Combined balance of bank and cash accounts, with the bank and cash split underneath.</td></tr>
+</table>
+<div class="box note"><b class="t">Note</b>The Receivables, Bank, Cash and COGS figures use each account's <b>Category</b> in the Chart of Accounts. An account only counts here if its category is set to <i>Receivables</i>, <i>Bank</i>, <i>Cash</i> or <i>COGS</i> respectively (see <a href="#s-coa-add">Adding an account</a>).</div>
+
+<h2 id="s-dash-charts">Charts and recent postings</h2>
+<ul>
+  <li><b>Revenue vs Cost of Goods Sold</b>: monthly bars for the last six months. Hover over a bar to see the exact amount.</li>
+  <li><b>Expense breakdown (YTD)</b>: the largest expense accounts this year as a ring chart, with amounts listed below.</li>
+  <li><b>Recent ledger postings</b>: the latest journal entries with their source (invoice, payment, voucher and so on). <span class="ui">View all →</span> opens the Journal Entries Register.</li>
+</ul>
+<h2 id="s-dash-quick">Quick actions</h2>
+<p>The buttons at the top right go straight to the most common tasks: <span class="ui">New Invoice</span>, <span class="ui">Record Payment</span> and <span class="ui">Post Voucher</span>. The circular-arrow button refreshes the figures.</p>
+
+<!-- ================= 4 CHART OF ACCOUNTS ================= -->
+<h1 class="chapter" id="ch-coa"><span class="num">4</span>Chart of Accounts</h1>
+<p class="lead">The chart of accounts is the list of general ledger accounts that every transaction posts to. This screen shows each account with its posted debits, credits and balance.</p>
+
+<h2 id="s-coa-view">Viewing accounts</h2>
+<ul>
+  <li>Use the type buttons (<span class="ui">ALL</span>, <span class="ui">ASSET</span>, <span class="ui">LIABILITY</span>, <span class="ui">EQUITY</span>, <span class="ui">REVENUE</span>, <span class="ui">EXPENSE</span>) to show one class of account.</li>
+  <li>Type in <span class="ui">Search code or name…</span> to find an account.</li>
+  <li>The columns show the code, name, type, category, whether it is a <b>control account</b>, total debits, total credits, balance and status.</li>
+  <li>The bottom row shows the ledger totals and says <b>(balanced)</b> when total debits equal total credits. If it ever says <b>(OUT OF BALANCE)</b>, report it to your finance manager.</li>
+</ul>
+<h3>Account types</h3>
+<table>
+  <tr><th>Type</th><th>Examples</th><th>Normal balance</th></tr>
+  <tr><td>ASSET</td><td>Cash, bank accounts, trade receivables, inventory</td><td>Debit</td></tr>
+  <tr><td>LIABILITY</td><td>Accounts payable, VAT, NHIL and GETFund payable</td><td>Credit</td></tr>
+  <tr><td>EQUITY</td><td>Stated capital</td><td>Credit</td></tr>
+  <tr><td>REVENUE</td><td>Commercial printing revenue</td><td>Credit</td></tr>
+  <tr><td>EXPENSE</td><td>Cost of goods sold, salaries, utilities</td><td>Debit</td></tr>
+</table>
+<h3>Control accounts</h3>
+<p>A <b>control account</b> summarises a detailed sub-ledger, for example Trade Receivables (the total of all customer invoices) or Accounts Payable. Control accounts can only be changed through their own module. Trade Receivables, for instance, moves only through invoices, payments, credit notes and voids. They are therefore not offered in Voucher Entry, which keeps the receivables total equal to the sum of open invoices.</p>
+
+<h2 id="s-coa-add">Adding an account</h2>
+<ol class="steps">
+  <li>Click <span class="ui">New Account</span>.</li>
+  <li>Enter the <span class="ui">Account code</span> (2–20 letters, digits or hyphens, for example <code>6200</code>) and the <span class="ui">Account name</span>.</li>
+  <li>Choose the account <b>type</b>.</li>
+  <li>Optionally enter a <span class="ui">Category</span>. Categories group accounts in reports. Use exactly these names where they apply:
+    <ul>
+      <li><b>Cash</b> or <b>Bank</b> for cash and bank accounts (Dashboard Bank &amp; Cash tile and financial ratios),</li>
+      <li><b>Receivables</b> for customer receivables, <b>COGS</b> for cost of goods sold,</li>
+      <li><b>Inventory</b>, <b>Prepayments</b>, <b>Payables</b>, <b>Tax</b>, <b>Accruals</b> for current assets and current liabilities.</li>
+    </ul></li>
+  <li>Tick <span class="ui">Control account</span> only if the account must never receive manual journals.</li>
+  <li>Click <span class="ui">Create account</span>.</li>
+</ol>
+<div class="box note"><b class="t">Note</b>Account codes and names cannot be edited or deleted from this screen once created, because posted transactions refer to them. If an account is no longer needed, deactivate it.</div>
+
+<h2 id="s-coa-deactivate">Deactivating and reactivating an account</h2>
+<p>Click the <span class="ui">Active</span> / <span class="ui">Inactive</span> button in the Status column to switch an account. An inactive account no longer accepts postings and is hidden from the account lists in Vouchers and Budgets. If the account still has a balance, the system asks you to confirm first.</p>
+<div class="box warn"><b class="t">Important</b>Do not deactivate an account that the system posts to automatically (cash, bank, receivables, revenue or the levy accounts). Invoices and payments would then be refused. These accounts are listed under <b>System Settings → GL Account Mapping</b>.</div>
+
+<h2 id="s-coa-opening">Opening balances</h2>
+<p>Opening balances are entered as a <b>Journal Voucher</b> dated on your opening date (see Chapter 5): debit the asset and expense accounts, credit the liability, equity and revenue accounts, so that the voucher balances.</p>
+<div class="box note"><b class="t">Note</b>Control accounts, such as Trade Receivables, cannot be posted from Voucher Entry. Ask your system administrator for help loading opening customer balances.</div>
+
+<!-- ================= 5 VOUCHERS ================= -->
+<h1 class="chapter" id="ch-vouchers"><span class="num">5</span>Voucher Entry</h1>
+<p class="lead">Voucher Entry is where you post manual journals: expenses paid, non-customer receipts, transfers between cash and bank, accruals and adjustments.</p>
+<div class="box warn"><b class="t">Use the right screen</b>Customer sales, customer receipts and credit notes must be entered on the <b>Invoices &amp; AR</b> and <b>Customer Payments</b> screens, not as vouchers. Those screens keep each customer's balance and the receivables account in step.</div>
+
+<h2 id="s-vch-types">Voucher types and shortcuts</h2>
+<p>Choose the voucher type with the buttons at the top of the screen, or press its function key while on the page:</p>
+<table>
+  <tr><th>Key</th><th>Voucher</th><th>Use it for</th><th>Typical entry</th></tr>
+  <tr><td><span class="key">F4</span></td><td>Contra Voucher</td><td>Transfers between cash and bank</td><td>Dr Bank · Cr Cash</td></tr>
+  <tr><td><span class="key">F5</span></td><td>Payment Voucher</td><td>Expenses paid from cash or bank</td><td>Dr Expense · Cr Bank or Cash</td></tr>
+  <tr><td><span class="key">F6</span></td><td>Receipt Voucher</td><td>Money received that is not from a customer (for example interest or sundry income)</td><td>Dr Bank · Cr Income</td></tr>
+  <tr><td><span class="key">F7</span></td><td>Journal Voucher</td><td>Adjustments, accruals, reclassifications, opening balances</td><td>Any balanced entry</td></tr>
+</table>
+<p>The type is recorded on the journal (for example <code>MANUAL_PAYMENT</code>) so you can filter by it later in the Journal Entries Register.</p>
+
+<h2 id="s-vch-post">Posting a voucher</h2>
+<ol class="steps">
+  <li>Choose the voucher type.</li>
+  <li>Set the <span class="ui">Voucher date</span>. It defaults to today; the date's month must be open.</li>
+  <li>Enter a <span class="ui">Reference</span> (optional, up to 50 characters, for example a cheque or memo number).</li>
+  <li>Enter the <span class="ui">Narration</span>: what the entry is for (at least 3 characters).</li>
+  <li>On each line, select the <span class="ui">Account</span>, optionally a line description, and an amount in <b>either</b> <span class="ui">Debit</span> <b>or</b> <span class="ui">Credit</span>. Typing in one column clears the other.</li>
+  <li>Use <span class="ui">Add line</span> for more lines, or the bin icon to remove one. A voucher needs at least two lines.</li>
+  <li>Check the balance indicator. It reads <b>Balanced</b> when debits equal credits, otherwise <b>Out of balance by GHS …</b>.</li>
+  <li>Click <span class="ui">Post voucher</span>. The button only works when the voucher is complete and balanced.</li>
+</ol>
+<p>When the voucher is posted, the screen shows its journal number (for example <b>Posted JNL-2026-000315</b>) with a link to the Journal Entries Register, and clears the form for the next voucher.</p>
+
+<div class="example"><div class="h">Example 1 — Paying an electricity bill by bank (Payment Voucher, F5)</div>
+<p>Narration: <i>ECG electricity bill, September 2026</i> · Reference: <i>CHQ-0012</i></p>
+<table><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr>
+<tr><td>Electricity &amp; utilities expense</td><td class="r">3,450.00</td><td class="r"></td></tr>
+<tr><td>GCB Bank – Operating Account</td><td class="r"></td><td class="r">3,450.00</td></tr></table></div>
+
+<div class="example"><div class="h">Example 2 — Banking the day's cash takings (Contra Voucher, F4)</div>
+<table><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr>
+<tr><td>GCB Bank – Operating Account</td><td class="r">12,000.00</td><td class="r"></td></tr>
+<tr><td>Main Cash Account</td><td class="r"></td><td class="r">12,000.00</td></tr></table></div>
+
+<div class="example"><div class="h">Example 3 — Accruing September salaries (Journal Voucher, F7)</div>
+<table><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr>
+<tr><td>Salaries &amp; Wages Expense</td><td class="r">48,750.00</td><td class="r"></td></tr>
+<tr><td>Accrued salaries (liability)</td><td class="r"></td><td class="r">48,750.00</td></tr></table></div>
+
+<h2 id="s-vch-rules">Rules the system enforces</h2>
+<ul>
+  <li>Only active, non-control accounts can be selected.</li>
+  <li>Each line has exactly one of debit or credit, and amounts cannot be negative.</li>
+  <li>Total debits must equal total credits exactly.</li>
+  <li>The voucher date cannot fall in a closed month. The message is <b>"Financial period M/YYYY is closed. Cannot post journal entries to a closed period."</b></li>
+</ul>
+<div class="box tip"><b class="t">Made a mistake?</b>A posted voucher cannot be edited. Reverse it from the Journal Entries Register (Chapter 6) and post a corrected voucher.</div>
+
+<!-- ================= 6 JOURNAL REGISTER ================= -->
+<h1 class="chapter" id="ch-journals"><span class="num">6</span>Journal Entries Register</h1>
+<p class="lead">The register lists journal entries from every source (invoices, payments, credit notes, voids and vouchers) with their totals and status.</p>
+
+<h2 id="s-jnl-find">Finding a journal</h2>
+<ul>
+  <li>Search by entry number, reference or description.</li>
+  <li>Use the source drop-down to show only one source, for example <code>INVOICE</code>, <code>PAYMENT</code>, <code>CREDIT_NOTE</code>, <code>INVOICE_VOID</code>, <code>MANUAL_PAYMENT</code>, <code>MANUAL_REVERSAL</code> or <code>PAYMENT_REVERSAL</code>.</li>
+  <li>The register shows the most recent 500 entries. For a complete listing over a date range use the <b>Day Book</b> report (Chapter 13).</li>
+</ul>
+<h3>Status column</h3>
+<table>
+  <tr><th>Status</th><th>Meaning</th></tr>
+  <tr><td><span class="badge b-green">POSTED</span></td><td>A normal posted entry.</td></tr>
+  <tr><td><span class="badge b-red">REVERSED</span></td><td>This entry has been cancelled by a reversal. Hover over it to see which entry reversed it.</td></tr>
+  <tr><td><span class="badge b-amber">REVERSAL</span></td><td>This entry is itself a reversal of an earlier entry.</td></tr>
+</table>
+
+<h2 id="s-jnl-view">Viewing a journal</h2>
+<p>Click <span class="ui">View</span> to open the entry. You see its date, source, reference, who posted it, the narration and every line with account, description, debit and credit.</p>
+
+<h2 id="s-jnl-reverse">Reversing a manual journal</h2>
+<ol class="steps">
+  <li>Click <span class="ui">Reverse</span> on the entry, in the list or in the opened entry.</li>
+  <li>Enter the reason when asked (at least 3 characters) and confirm.</li>
+  <li>The system posts a mirror-image journal <b>dated today</b> and shows its number. The original is marked <span class="badge b-red">REVERSED</span>.</li>
+</ol>
+<div class="box note"><b class="t">Which entries can be reversed?</b>Only manual journals (vouchers) that have not already been reversed and are not themselves reversals. Journals created by invoices, payments, credit notes and voids are corrected through their own screen: void or credit the invoice, or reverse the payment. Because the reversal is dated today, it can be posted even if the original month is closed.</div>
+
+<!-- ================= 7 INVOICES ================= -->
+<h1 class="chapter" id="ch-invoices"><span class="num">7</span>Invoicing &amp; Accounts Receivable</h1>
+<p class="lead">Create customer tax invoices with Ghana's statutory levies, track what each customer owes, and correct invoices with credit notes or voids.</p>
+
+<div class="flow">
+  <div class="s"><b>1. Invoice</b>Create &amp; post; customer owes the gross amount</div><div class="a">›</div>
+  <div class="s"><b>2. Send</b>Print or download the PDF tax invoice</div><div class="a">›</div>
+  <div class="s"><b>3. Receive</b>Record the payment against the invoice</div><div class="a">›</div>
+  <div class="s"><b>4. Reconcile</b>Match the receipt on the bank statement</div>
+</div>
+
+<h2 id="s-customers">Setting up customers</h2>
+<p>Every invoice and receipt belongs to a customer. Customers are maintained on the <span class="ui">Customers</span> screen, which lists each customer with contact details, GRA TIN, credit limit, the amount currently <b>outstanding</b> and the number of open invoices. Use the <span class="ui">ACTIVE</span> / <span class="ui">INACTIVE</span> / <span class="ui">ALL</span> buttons and the search box to find a customer.</p>
+<ol class="steps">
+  <li>Click <span class="ui">New Customer</span>.</li>
+  <li>Enter the <span class="ui">Customer name</span> (required and must be unique) and, optionally, email, phone, address and <span class="ui">GRA TIN</span>.</li>
+  <li>Optionally enter a <span class="ui">Credit limit</span> in GHS; leave it blank for no limit.</li>
+  <li>Click <span class="ui">Create customer</span>.</li>
+</ol>
+<p>Click <span class="ui">Edit</span> to change a customer's details. Click <span class="ui">Deactivate</span> for a customer you no longer trade with: their invoices and payments are kept, no new invoices can be raised for them, and their remaining balance can still be paid. <span class="ui">Reactivate</span> reverses this. Customers are never deleted.</p>
+
+<h2 id="s-inv-screen">The invoices screen</h2>
+<p>Four tiles summarise receivables (voided invoices are excluded):</p>
+<ul>
+  <li><b>Total Invoiced</b>: gross value of all invoices.</li>
+  <li><b>Settled</b>: amount cleared by payments and credit notes, with the percentage of invoiced.</li>
+  <li><b>Outstanding AR Balance</b>: amount still owed.</li>
+  <li><b>Overdue Receivables</b>: amount past its due date.</li>
+</ul>
+<p>Filter the list with the status buttons, or search by invoice number or customer. Each row shows the date, due date, customer, net amount, levies, gross amount, balance due and status.</p>
+<table>
+  <tr><th>Status</th><th>Meaning</th></tr>
+  <tr><td><span class="badge b-amber">UNPAID</span></td><td>Nothing has been paid or credited.</td></tr>
+  <tr><td><span class="badge b-blue">PARTIAL</span></td><td>Part paid or part credited; a balance remains.</td></tr>
+  <tr><td><span class="badge b-green">PAID</span></td><td>Fully settled by payments and/or credit notes.</td></tr>
+  <tr><td><span class="badge b-red">OVERDUE</span></td><td>Shown instead of Unpaid/Partial once the due date has passed and a balance remains.</td></tr>
+  <tr><td><span class="badge b-grey">VOID</span></td><td>Cancelled. The ledger entries have been reversed.</td></tr>
+</table>
+<p><span class="ui">Export Register PDF</span> downloads the list as currently filtered.</p>
+
+<h2 id="s-inv-create">Creating an invoice</h2>
+<ol class="steps">
+  <li>Click <span class="ui">Create New Invoice</span>.</li>
+  <li>Select the <span class="ui">Customer / Client</span>.</li>
+  <li>Check the <span class="ui">Invoice date</span>. It defaults to today and can be set to an earlier date in an open month, but not a future date.</li>
+  <li>Optionally set the <span class="ui">Due date</span>. If you leave it blank the invoice is due 30 days after the invoice date. It cannot be earlier than the invoice date.</li>
+  <li>For each item enter the <span class="ui">Item Description</span>, <span class="ui">Qty</span> and <span class="ui">Unit Price (GHS)</span> before levies. Use <span class="ui">+ Add Item Row</span> for more items and × to remove one.</li>
+  <li>Check the totals panel: Net Subtotal, VAT (15%), NHIL (2.5%), GETFund (2.5%) and TOTAL.</li>
+  <li>Click <span class="ui">Post Invoice</span>. The invoice is numbered and posted to the ledger immediately.</li>
+</ol>
+<div class="box note"><b class="t">Customers</b>Only active customers are offered. If a customer is missing, add or reactivate them on the Customers screen first.</div>
+
+<div class="example"><div class="h">Example — how the levies are calculated</div>
+<p>Each levy is calculated on the <b>net</b> amount. The levies are not charged on each other.</p>
+<table>
+<tr><th>Line</th><th class="r">Amount (GHS)</th></tr>
+<tr><td>500 copies × 2.00 (net subtotal)</td><td class="r">1,000.00</td></tr>
+<tr><td>VAT 15% of 1,000.00</td><td class="r">150.00</td></tr>
+<tr><td>NHIL 2.5% of 1,000.00</td><td class="r">25.00</td></tr>
+<tr><td>GETFund 2.5% of 1,000.00</td><td class="r">25.00</td></tr>
+<tr><td><b>Total payable by customer</b></td><td class="r"><b>1,200.00</b></td></tr>
+</table>
+<p class="small" style="margin-top:2mm">Ledger effect: Trade Receivables debited 1,200.00; Sales Revenue credited 1,000.00; VAT, NHIL and GETFund payable credited 150.00, 25.00 and 25.00.</p></div>
+
+<h2 id="s-inv-view">Viewing, printing and downloading an invoice</h2>
+<p>Click <span class="ui">View</span> on any invoice to open it as a <b>Tax Invoice</b> showing the company details and TIN, the invoice number and dates, the customer, the line items and the levy breakdown, gross amount and balance due. From here you can:</p>
+<ul>
+  <li><span class="ui">Download PDF</span>: save the invoice as a PDF to email to the customer.</li>
+  <li><span class="ui">Print A4</span>: print the invoice.</li>
+  <li><span class="ui">Void Invoice</span> or <span class="ui">Issue Credit Note</span> (below).</li>
+</ul>
+
+<h2 id="s-inv-void">Voiding an invoice</h2>
+<p>Void an invoice that should never have been raised, for example one sent to the wrong customer or duplicated.</p>
+<ol class="steps">
+  <li>Open the invoice and click <span class="ui">Void Invoice</span>.</li>
+  <li>Enter the reason (at least 3 characters) and confirm.</li>
+</ol>
+<p>The system posts an entry reversing the receivable, revenue and all three levies, and marks the invoice <span class="badge b-grey">VOID</span>.</p>
+<div class="box warn"><b class="t">When an invoice cannot be voided</b>Only invoices with nothing paid or credited can be voided; the button appears only on <b>UNPAID</b> invoices. Otherwise the message is <b>"Invoice has payments or credit notes applied and cannot be voided. Issue a credit note instead."</b> The void is dated today, so today's month must be open.</div>
+
+<h2 id="s-inv-credit">Issuing a credit note</h2>
+<p>Use a credit note to reduce what a customer owes: returned goods, a price adjustment, a discount agreed after invoicing, or a partly wrong invoice.</p>
+<ol class="steps">
+  <li>Open the invoice (it must be Unpaid or Partial with a balance) and click <span class="ui">Issue Credit Note</span>.</li>
+  <li>Enter the amount to credit <b>including levies</b>. It cannot exceed the balance due.</li>
+  <li>Enter the reason (at least 3 characters).</li>
+</ol>
+<p>The system issues a numbered credit note (CN-…), reduces the invoice balance and reverses revenue and each levy in proportion. For example, crediting GHS 120.00 on a 1,200.00 invoice reverses 100.00 of revenue, 15.00 VAT, 2.50 NHIL and 2.50 GETFund. If the credit clears the balance, the invoice becomes <span class="badge b-green">PAID</span>.</p>
+
+<!-- ================= 8 PAYMENTS ================= -->
+<h1 class="chapter" id="ch-payments"><span class="num">8</span>Customer Payments &amp; Receipts</h1>
+<p class="lead">Record money received from customers, apply it to their invoices, and print official receipts.</p>
+
+<h2 id="s-pay-screen">The payments screen</h2>
+<ul>
+  <li><b>Total Received</b>: all receipts listed.</li>
+  <li><b>Allocated to Invoices</b>: receipts applied to a specific invoice.</li>
+  <li><b>Unallocated</b>: receipts held on the customer's account (prepayments).</li>
+</ul>
+<p>Filter by method (<span class="ui">Bank Transfer</span>, <span class="ui">Cheque</span>, <span class="ui">Mobile Money</span>, <span class="ui">Cash</span>) or search by receipt number, customer, reference or invoice. Export the list with <span class="ui">Excel</span> or <span class="ui">PDF</span>.</p>
+
+<h2 id="s-pay-record">Recording a payment</h2>
+<ol class="steps">
+  <li>Click <span class="ui">Record Payment</span>.</li>
+  <li>Select the <span class="ui">Customer / Client</span>. Inactive customers are listed with "(inactive)" so their remaining balances can still be paid.</li>
+  <li>In <span class="ui">Apply to invoice</span>, choose the invoice being paid. Only that customer's open invoices are listed, with their balances. Choose <span class="ui">Unallocated (payment on account)</span> if the payment is not for a specific invoice.</li>
+  <li>Enter the <span class="ui">Amount (GHS)</span> and the <span class="ui">Payment date</span>. The date cannot be in the future, and its month must be open.</li>
+  <li>Choose the <span class="ui">Payment method</span> and enter the <span class="ui">Reference / Cheque #</span>, such as the transfer reference, cheque or Mobile Money transaction number.</li>
+  <li>Click <span class="ui">Record Payment &amp; Post GL</span>.</li>
+</ol>
+<p>The invoice balance reduces immediately and its status becomes <span class="badge b-blue">PARTIAL</span> or <span class="badge b-green">PAID</span>.</p>
+<div class="box note"><b class="t">Where the money is posted</b><b>Bank Transfer</b> receipts are debited to the bank account. <b>Cash, Cheque and Mobile Money</b> receipts are debited to the cash account, as the form indicates. When cheques or Mobile Money receipts are later banked, record the transfer with a <b>Contra Voucher</b> (Chapter 5). In every case Trade Receivables is credited.</div>
+
+<h2 id="s-pay-over">Overpayments and payments on account</h2>
+<ul>
+  <li><b>Overpayment.</b> If the amount is more than the invoice balance, the form warns you. On saving, the invoice is marked Paid and the excess is recorded as an open credit note (CN-OVERPAY-…) for the customer.</li>
+  <li><b>On account.</b> An unallocated payment reduces the customer's overall receivable without settling a particular invoice.</li>
+</ul>
+<div class="box warn"><b class="t">Important</b>A recorded payment cannot be edited. Check the customer, invoice and amount before saving. A payment recorded wrongly is corrected by reversing it (below) and recording it again.</div>
+
+<h2 id="s-pay-receipt">Printing an official receipt</h2>
+<p>Click <span class="ui">Receipt</span> on any payment to display an <b>Official Receipt</b> showing the receipt number and date, who paid, the method, the reference, what it was applied to and the amount. Click <span class="ui">Print Receipt</span> to print it.</p>
+<h2 id="s-pay-reverse">Reversing a payment</h2>
+<p>Reverse a payment that was recorded in error (wrong customer, invoice or amount) or a cheque that has bounced.</p>
+<ol class="steps">
+  <li>Click <span class="ui">Receipt</span> on the payment, then <span class="ui">Reverse Payment</span>.</li>
+  <li>Enter the reason (at least 5 characters, for example "Cheque 000123 returned unpaid") and confirm.</li>
+</ol>
+<p>The system then:</p>
+<ul>
+  <li>posts a reversing ledger entry <b>dated today</b> that exactly cancels the payment's original entry;</li>
+  <li>puts the amount back on the invoice, which returns to <span class="badge b-amber">UNPAID</span> or <span class="badge b-blue">PARTIAL</span>;</li>
+  <li>cancels any overpayment credit (CN-OVERPAY) the payment created;</li>
+  <li>marks the payment <span class="badge b-red">REVERSED</span>. It stays in the list, struck through, and is left out of the totals and of bank statement matching.</li>
+</ul>
+<p>Reversing requires the <b>Reverse Payments</b> permission (Finance Administrators and Senior Accountants by default). A payment can be reversed only once, and not if its overpayment credit has already been used.</p>
+
+<p>Payments that cannot be applied are refused with clear messages, for example <b>"Invoice is already fully paid. Cannot apply additional payments."</b> or <b>"Invoice is voided. Cannot process payment on voided invoices."</b></p>
+
+<!-- ================= 9 BANK REC ================= -->
+<h1 class="chapter" id="ch-bank"><span class="num">9</span>Bank Reconciliation</h1>
+<p class="lead">Bank reconciliation confirms that the money on your bank statement agrees with what was recorded in the system. Upload the statement and the system matches what it can automatically; you then clear the rest.</p>
+
+<h2 id="s-bank-accounts">Choosing the bank account</h2>
+<p>The cards at the top list the company's active bank accounts, each with its general ledger account, bank name, account number and current <b>GL Balance</b>. Click a card to work on that account.</p>
+
+<h2 id="s-bank-csv">Preparing the statement file</h2>
+<p>Download the statement from internet banking as a <b>CSV</b> file, or save it from Excel as "CSV (Comma delimited)". The file must:</p>
+<ul>
+  <li>have a header row and at least one transaction row, and be no larger than 10 MB;</li>
+  <li>contain a <b>date</b> column, a <b>description</b> column, and either separate <b>debit/credit</b> columns or a single signed <b>amount</b> column (negative = money out).</li>
+</ul>
+<p>Column headings are recognised flexibly, so most bank downloads work without editing:</p>
+<table>
+  <tr><th>Information</th><th>Headings recognised (any one)</th></tr>
+  <tr><td>Transaction date</td><td>Transaction Date, Txn Date, Posting Date, Trans Date, Post Date, Date</td></tr>
+  <tr><td>Description</td><td>Description, Narration, Details, Particulars, Remarks, Transaction Details</td></tr>
+  <tr><td>Reference</td><td>Reference, Ref, Ref No, Reference Number, Cheque No, Chq No, Tran Ref</td></tr>
+  <tr><td>Money out</td><td>Debit, Withdrawal(s), Dr, Debit Amount, Money Out, Out</td></tr>
+  <tr><td>Money in</td><td>Credit, Deposit(s), Cr, Credit Amount, Money In, In</td></tr>
+  <tr><td>Single amount</td><td>Amount, Net Amount, Txn Amount</td></tr>
+  <tr><td>Balance (optional)</td><td>Balance, Running Balance, Closing Balance, Available Balance</td></tr>
+</table>
+<p>Dates may be written <code>2026-09-30</code> or day-first, such as <code>30/09/2026</code> or <code>30-09-26</code>.</p>
+<div class="box warn"><b class="t">Day-first dates</b>Dates like 03/09/2026 are read as <b>3 September</b>. If your file uses month-first dates, change the date format in Excel to dd/mm/yyyy before saving.</div>
+
+<h2 id="s-bank-upload">Uploading and automatic matching</h2>
+<ol class="steps">
+  <li>Click <span class="ui">Upload CSV Statement</span>.</li>
+  <li>Check the <span class="ui">Target Bank Account</span> and choose the file.</li>
+  <li>Click <span class="ui">Ingest &amp; Auto-Match Statement</span>. A message reports how many lines were matched and how many remain unmatched.</li>
+</ol>
+<p>For each statement line the system looks for a recorded customer payment of the same amount (within GHS 1.00) dated between six months before and 30 days after the statement date. If none is found, it looks for a posted journal line of the same amount in the same window. Each payment can only be matched once, and reversed payments are never matched. Matched lines are marked <span class="badge b-green">CLEARED</span> and show the matched reference.</p>
+
+<h2 id="s-bank-resolve">Clearing unmatched lines</h2>
+<p>Lines marked <span class="badge b-amber">UNMATCHED</span> need your attention. Common causes and actions:</p>
+<table>
+  <tr><th>Cause</th><th>What to do</th></tr>
+  <tr><td>Bank charge, interest or levy not yet recorded</td><td>Post a Payment or Receipt Voucher for it, then clear the line with <span class="ui">Resolve Variance</span>.</td></tr>
+  <tr><td>Customer receipt not yet recorded</td><td>Record it on Customer Payments; the next statement upload will match it.</td></tr>
+  <tr><td>Timing difference (recorded in a different period)</td><td>Clear with <span class="ui">Resolve Variance</span>, stating "timing difference".</td></tr>
+</table>
+<p>To clear a line, click <span class="ui">Resolve Variance</span>, enter the reason (at least 3 characters, for example "bank charge September") and confirm.</p>
+<div class="box note"><b class="t">Note</b>Resolving a variance records your explanation; it does not post anything to the ledger. If money actually left or entered the bank, post the matching voucher as well.</div>
+
+<!-- ================= 10 BUDGETS ================= -->
+<h1 class="chapter" id="ch-budgets"><span class="num">10</span>Budgets vs. Actuals</h1>
+<p class="lead">Set annual budgets for income and expense accounts and track actual performance against them.</p>
+
+<h2 id="s-bud-create">Creating a budget</h2>
+<ol class="steps">
+  <li>Select the fiscal year (<span class="ui">FY</span>) at the top right: next year, this year or one of the two previous years.</li>
+  <li>Click <span class="ui">New Budget</span> and enter a <span class="ui">Budget name</span> and, optionally, a description.</li>
+  <li>For each account to budget, choose the account (active revenue and expense accounts are listed) and enter the annual amount. Use <span class="ui">Add account</span> for more lines.</li>
+  <li>Click <span class="ui">Create budget</span>.</li>
+</ol>
+<div class="box note"><b class="t">Note</b>Budgets are annual and cannot be changed after they are created. To revise a budget, create a new one with a clear name, for example "2027 Operating Budget – Revised June".</div>
+
+<h2 id="s-bud-review">Reviewing performance</h2>
+<p>Select a budget from the list on the left. For each account the table shows the <b>budget</b>, the <b>actual</b> posted in that fiscal year, the <b>variance</b> and a <b>consumption</b> bar with the percentage used. Overspent expenses and revenue below target are highlighted as unfavourable. The bottom row totals the budget.</p>
+<p>Actual figures include only posted ledger entries dated within the selected year.</p>
+
+<!-- ================= 11 PERIOD CLOSE ================= -->
+<h1 class="chapter" id="ch-close"><span class="num">11</span>Fiscal Period Close</h1>
+<p class="lead">Closing a month locks it: no invoice, payment, credit note, void or voucher dated in that month can be posted afterwards.</p>
+
+<h2 id="s-close-screen">The period close screen</h2>
+<p>Choose the year at the top right. For each month the table shows its date range, the number of journals, total debits and credits, its status (<span class="badge b-green">OPEN</span> or <span class="badge b-red">CLOSED</span>) and who closed it and when.</p>
+
+<h2 id="s-close-how">Closing a month</h2>
+<ol class="steps">
+  <li>Complete the month-end checklist (Chapter 15).</li>
+  <li>Click <span class="ui">Close</span> on the month. The button is available only after the month has ended.</li>
+  <li>Confirm. The system checks that the month's ledger balances; if it does not, it refuses and shows the debit and credit totals.</li>
+</ol>
+<p>Every close is recorded in the System Audit Logs.</p>
+<div class="box warn"><b class="t">Before you close</b>Make sure all invoices, receipts and vouchers for the month are in, the bank is reconciled and the levy return has been checked. After closing, corrections can only be posted in an open month.</div>
+
+<h2 id="s-close-reopen">Re-opening a closed month</h2>
+<p>A closed month can be re-opened only by a <b>Super Administrator</b>. A <span class="ui">Re-open</span> button appears on closed months for them.</p>
+<ol class="steps">
+  <li>Click <span class="ui">Re-open</span> on the month.</li>
+  <li>Enter the reason (at least 10 characters). It is recorded in the audit log.</li>
+  <li>Make the correction, then close the month again.</li>
+</ol>
+
+<!-- ================= 12 TAX ================= -->
+<h1 class="chapter" id="ch-tax"><span class="num">12</span>Ghana GRA Levy Returns</h1>
+<p class="lead">This screen gives the output VAT, NHIL and GETFund figures for each month, ready for your GRA filing.</p>
+<h2 id="s-tax-read">Reading the screen</h2>
+<ul>
+  <li>The three tiles show the <b>VAT, NHIL and GETFund payable</b> for the last complete month.</li>
+  <li>The <b>monthly levy register</b> covers the last six complete months: taxable sales, each levy, total levies, and the number of invoices and credit notes.</li>
+  <li>Figures come from the ledger, so voided invoices and credit notes are already deducted.</li>
+  <li>The <b>Check</b> column shows <span class="badge b-green">OK</span> when each levy equals its rate × taxable sales, or <span class="badge b-amber">REVIEW</span> when they differ, for instance if a manual voucher was posted to a levy account. Investigate any REVIEW month before filing.</li>
+</ul>
+<p>Use <span class="ui">Excel</span> or <span class="ui">PDF</span> to export the register. For any other date range, run the <b>Levy Return</b> report in Financial Reports.</p>
+<div class="box note"><b class="t">Scope</b>These are <b>output</b> levies on sales only. Input VAT on purchases and withholding tax are not tracked in the system and must be worked out separately.</div>
+
+<!-- ================= 13 REPORTS ================= -->
+<h1 class="chapter" id="ch-reports"><span class="num">13</span>Financial Reports</h1>
+<p class="lead">All reports are produced from posted ledger entries at the moment you run them.</p>
+<h2 id="s-rep-run">Running a report</h2>
+<ol class="steps">
+  <li>Click the report name at the top of the screen.</li>
+  <li>Set the dates: <span class="ui">From</span> and <span class="ui">To</span> for period reports, or <span class="ui">As at</span> for balance reports.</li>
+  <li>Click <span class="ui">Run</span>.</li>
+  <li>Use <span class="ui">Excel</span>, <span class="ui">CSV</span>, <span class="ui">PDF</span> or <span class="ui">Print</span> to keep a copy.</li>
+</ol>
+<h2 id="s-rep-list">Available reports</h2>
+<table>
+  <tr><th style="width:24%">Report</th><th style="width:16%">Dates</th><th>Contents</th></tr>
+  <tr><td><b>Day Book</b></td><td>From – To</td><td>Every journal line in date order: date, voucher number, source, account, narration, debit and credit, with totals. Shows up to 5,000 lines; narrow the dates for larger periods.</td></tr>
+  <tr><td><b>Trial Balance</b></td><td>As at</td><td>Each account's debit or credit balance and the totals, with a confirmation that the ledger balances.</td></tr>
+  <tr><td><b>Profit &amp; Loss</b></td><td>From – To</td><td>Revenue and expense accounts for the period, with totals and the net profit or loss.</td></tr>
+  <tr><td><b>Balance Sheet</b></td><td>As at</td><td>Assets, liabilities and equity, including retained earnings (cumulative profit), with a check that assets equal liabilities plus equity.</td></tr>
+  <tr><td><b>AR Aging</b></td><td>Today</td><td>Each customer's balance split into Not yet due, 1–30, 31–60, 61–90 and 90+ days past the due date.</td></tr>
+  <tr><td><b>Levy Return</b></td><td>From – To</td><td>Taxable sales net of credit notes and voids, and VAT, NHIL and GETFund payable for any period.</td></tr>
+</table>
+<div class="box tip"><b class="t">Tip</b>Run the Trial Balance at each month-end and keep the PDF with your month-end file. It shows "The ledger balances." when everything is in order.</div>
+
+<!-- ================= 14 ADMIN ================= -->
+<h1 class="chapter" id="ch-admin"><span class="num">14</span>Administration</h1>
+<p class="lead">These screens are for system administrators: managing users, roles and permissions, reviewing the audit trail and maintaining settings.</p>
+
+<h2 id="s-users">User Management</h2>
+<p>The list shows every user with their name, email, role, status and when they last signed in (GMT). "Never" means the user has not signed in yet.</p>
+<h3>Adding a user</h3>
+<ol class="steps">
+  <li>Click <span class="ui">Add New User</span> and enter the <span class="ui">Full Name</span> and <span class="ui">Email Address</span>.</li>
+  <li>Choose the <span class="ui">Assigned System Role</span> (see <a href="#s-roles">Roles &amp; Permissions</a>).</li>
+  <li>Enter an <span class="ui">Initial Account Password</span> and confirm it. It must be at least <b>10 characters</b> with a letter and a number.</li>
+  <li>Save, and give the user their email address and password securely.</li>
+</ol>
+<h3>Changing a user</h3>
+<ul>
+  <li><b>Change role:</b> pick a new role from the drop-down in the user's row.</li>
+  <li><b>Activate / deactivate:</b> use the status button. A deactivated user cannot sign in, but their history is kept.</li>
+  <li><b>Edit or reset password:</b> click the edit icon to change the name, email or status, or type a new password to reset it.</li>
+</ul>
+<div class="box warn"><b class="t">Super Administrator accounts</b>Only a Super Administrator can make someone a Super Administrator, or edit, reset or deactivate a Super Administrator's account. The last active Super Administrator cannot be demoted or deactivated, so the system always has one.</div>
+<p>Role and permission changes take effect the next time the user signs in.</p>
+
+<h2 id="s-roles">Roles &amp; Permissions</h2>
+<p>A role is a named set of permissions. Every user has exactly one role.</p>
+<h3>Built-in roles</h3>
+<table>
+  <tr><th>Role</th><th>Intended for</th></tr>
+  <tr><td><b>Super Administrator</b></td><td>Full access, including re-opening closed periods and managing other Super Administrators. Not shown in the roles list; assigned from User Management.</td></tr>
+  <tr><td><b>Finance Administrator</b></td><td>Full access to all finance work and administration. Its permissions cannot be edited.</td></tr>
+  <tr><td><b>Senior Accountant</b></td><td>Journals, invoices, voids, payments, period close and bank reconciliation.</td></tr>
+  <tr><td><b>AR Clerk</b></td><td>Creating invoices and recording customer payments.</td></tr>
+  <tr><td><b>Financial Auditor</b></td><td>Read-only access to the ledger, journals, invoices, payments and audit logs.</td></tr>
+</table>
+<p>Built-in roles cannot be renamed or deleted. Appendix A lists exactly what each one can do.</p>
+<h3>Creating a custom role</h3>
+<ol class="steps">
+  <li>Click <span class="ui">Create New Role</span> and enter a name (letters, numbers, spaces and - _ &amp; . ( ) only) and a description. Names of built-in roles cannot be reused.</li>
+  <li>The new role is created with <b>no permissions</b> and selected for you.</li>
+  <li>Tick the permissions it needs in the panel on the right, grouped by Accounting, Invoicing &amp; AR, Banking and Administration.</li>
+  <li>Click <span class="ui">Save Permissions</span>.</li>
+</ol>
+<p>To change an existing role's permissions, select it, tick or untick permissions and click <span class="ui">Save Permissions</span>. Custom roles can be renamed (users keep the role) or deleted once no users are assigned to them. All role changes are recorded in the audit log.</p>
+
+<h2 id="s-audit">System Audit Logs</h2>
+<p>The audit trail records who posted, voided, reversed or changed what, and when, including invoices, payments, credit notes, journals, period closes and re-opens, users, roles and settings.</p>
+<ul>
+  <li>Set the <span class="ui">From</span> and <span class="ui">To</span> dates and, optionally, an entity type, then refresh.</li>
+  <li>Filter further by user, action or details using the search box.</li>
+  <li>Click a row to see the <b>Before</b> and <b>After</b> values of the change.</li>
+</ul>
+<p>Audit entries cannot be edited or deleted by anyone.</p>
+
+<h2 id="s-settings">System Settings</h2>
+<p>Settings are arranged in tabs. Use <span class="ui">Save Configurations</span> to save the Company Profile, Tax Rates and General Ledger Policies tabs.</p>
+<table>
+  <tr><th style="width:28%">Tab</th><th>Contents</th></tr>
+  <tr><td>Company Profile</td><td>Registered company name, GRA TIN, base currency (GHS, fixed) and financial year start.</td></tr>
+  <tr><td>Statutory Levies &amp; Tax Rates</td><td>Reference values for VAT, NHIL, GETFund and withholding tax. Invoices always apply VAT 15%, NHIL 2.5% and GETFund 2.5%; changing these fields does not change invoice calculations.</td></tr>
+  <tr><td>General Ledger Policies</td><td>Imbalance tolerance and policy switches.</td></tr>
+  <tr><td>GL Account Mapping</td><td>The accounts the system posts to automatically (see below). Has its own save button.</td></tr>
+  <tr><td>Security &amp; Session</td><td>Session length and request limits, for information only.</td></tr>
+</table>
+<h3>GL Account Mapping</h3>
+<p>This tab sets which ledger accounts invoices, payments, voids, credit notes, the levy return and the dashboard use:</p>
+<table>
+  <tr><th>Purpose</th><th>Must be</th><th>Can change after use?</th></tr>
+  <tr><td>Cash on hand (cash, cheque and Mobile Money receipts)</td><td>Asset</td><td class="yes">Yes</td></tr>
+  <tr><td>Bank (bank transfer receipts)</td><td>Asset</td><td class="yes">Yes</td></tr>
+  <tr><td>Trade receivables (AR control)</td><td>Asset</td><td>No, locked once used</td></tr>
+  <tr><td>Sales revenue</td><td>Revenue</td><td>No, locked once used</td></tr>
+  <tr><td>VAT payable / NHIL payable / GETFund payable</td><td>Liability</td><td>No, locked once used</td></tr>
+</table>
+<p>Choose the account for each purpose and click <span class="ui">Save account mapping</span>. Each purpose needs its own active account of the right type. Changes apply to new postings only.</p>
+<div class="box warn"><b class="t">Set this up before go-live</b>Receivables, revenue and the levy accounts lock (padlock icon) as soon as they have postings, because voids and credit notes must reverse through the same accounts as the original invoice. Agree the mapping before the first invoice is posted.</div>
+
+<!-- ================= 15 WORKFLOWS ================= -->
+<h1 class="chapter" id="ch-flows"><span class="num">15</span>Common Tasks and Month-End</h1>
+
+<h2 id="s-flow-month">Month-end checklist</h2>
+<table>
+  <tr><th class="c" style="width:7%">#</th><th>Task</th><th style="width:30%">Where</th></tr>
+  <tr><td class="c">1</td><td>Make sure all the month's invoices are posted.</td><td>Invoices &amp; AR</td></tr>
+  <tr><td class="c">2</td><td>Record all customer receipts; allocate them to invoices.</td><td>Customer Payments</td></tr>
+  <tr><td class="c">3</td><td>Post expenses paid, other receipts, transfers and accruals.</td><td>Voucher Entry</td></tr>
+  <tr><td class="c">4</td><td>Upload each bank statement; post bank charges; resolve every unmatched line.</td><td>Bank Reconciliation</td></tr>
+  <tr><td class="c">5</td><td>Follow up overdue customers.</td><td>Financial Reports → AR Aging</td></tr>
+  <tr><td class="c">6</td><td>Check the levy figures show OK; prepare the GRA filing.</td><td>Ghana GRA Tax Returns</td></tr>
+  <tr><td class="c">7</td><td>Run and save the Trial Balance, Profit &amp; Loss and Balance Sheet.</td><td>Financial Reports</td></tr>
+  <tr><td class="c">8</td><td>Review budget variances.</td><td>Budgets vs. Actuals</td></tr>
+  <tr><td class="c">9</td><td>Close the month.</td><td>Fiscal Period Close</td></tr>
+</table>
+
+<h2 id="s-flow-fix">How do I…?</h2>
+<table>
+  <tr><th style="width:38%">Situation</th><th>What to do</th></tr>
+  <tr><td>Invoice raised in error, nothing paid yet</td><td>Open it and <b>Void Invoice</b>.</td></tr>
+  <tr><td>Invoice amount wrong, customer has already paid part</td><td><b>Issue Credit Note</b> for the excess; if it was too low, raise an additional invoice for the difference.</td></tr>
+  <tr><td>Customer returned goods</td><td><b>Issue Credit Note</b> on the invoice for the value returned, including levies.</td></tr>
+  <tr><td>Customer paid more than the invoice</td><td>Record the full amount against the invoice; the excess becomes an open credit (CN-OVERPAY).</td></tr>
+  <tr><td>Customer paid without quoting an invoice</td><td>Record the payment as <b>Unallocated (payment on account)</b>.</td></tr>
+  <tr><td>Wrong account on a voucher</td><td><b>Reverse</b> the voucher in the Journal Entries Register, then post a corrected voucher.</td></tr>
+  <tr><td>Need to post into a closed month</td><td>Post the correction in the current open month, or ask a Super Administrator to re-open the month.</td></tr>
+  <tr><td>Cheques banked</td><td><b>Contra Voucher</b>: debit Bank, credit Cash.</td></tr>
+  <tr><td>Bank charges on the statement</td><td><b>Payment Voucher</b>: debit Bank Charges, credit Bank; then resolve the statement line.</td></tr>
+  <tr><td>New customer</td><td><b>Customers → New Customer</b>.</td></tr>
+  <tr><td>Cheque bounced, or payment recorded against the wrong invoice or customer</td><td><b>Reverse Payment</b> from the receipt, then record the payment correctly.</td></tr>
+  <tr><td>Invoice for a sale made earlier in an open month</td><td>Set the <b>Invoice date</b> when creating the invoice.</td></tr>
+  <tr><td>Forgotten password</td><td>Ask a system administrator to reset it.</td></tr>
+</table>
+
+<!-- ================= 16 MESSAGES ================= -->
+<h1 class="chapter" id="ch-msgs"><span class="num">16</span>Messages and What They Mean</h1>
+<table>
+  <tr><th style="width:44%">Message</th><th>Meaning and what to do</th></tr>
+  <tr><td>Financial period M/YYYY is closed. Cannot post journal entries to a closed period.</td><td>The date falls in a closed month. Use a date in an open month, or ask a Super Administrator to re-open it.</td></tr>
+  <tr><td>Journal entry is unbalanced. Total Debits (…) != Total Credits (…).</td><td>Debits and credits differ. Correct the line amounts.</td></tr>
+  <tr><td>Control account(s) … can only be posted through their sub-ledger (invoices, payments, stores).</td><td>That account can only be changed through its own module. Use Invoices or Payments instead.</td></tr>
+  <tr><td>Account code not found or inactive: …</td><td>The account has been deactivated. Choose another, or ask an administrator to reactivate it.</td></tr>
+  <tr><td>Invoice has payments or credit notes applied and cannot be voided. Issue a credit note instead.</td><td>Use Issue Credit Note.</td></tr>
+  <tr><td>Credit amount (…) exceeds the invoice balance due (…).</td><td>A credit note cannot exceed what is still owed. Reduce the amount.</td></tr>
+  <tr><td>Invoice is already fully paid. Cannot apply additional payments.</td><td>Choose another invoice, or record the payment as unallocated.</td></tr>
+  <tr><td>Customer "…" is inactive. Reactivate it on the Customers page before invoicing.</td><td>Reactivate the customer, or choose the correct one.</td></tr>
+  <tr><td>Invoice date cannot be in the future.</td><td>Use today's date or an earlier one.</td></tr>
+  <tr><td>Payment … has already been reversed.</td><td>Nothing more to do; record the correct payment if needed.</td></tr>
+  <tr><td>Client with this name already exists</td><td>Each customer name must be unique; find and edit the existing customer.</td></tr>
+  <tr><td>Forbidden: Missing required permission '…'</td><td>Your role does not allow this action. Ask an administrator.</td></tr>
+  <tr><td>Unauthorized: Authentication required</td><td>Your session has ended. Sign in again.</td></tr>
+  <tr><td>Too many login attempts. Please try again later.</td><td>Wait about a minute before trying again.</td></tr>
+  <tr><td>Password must be at least 10 characters / contain a letter / contain a number</td><td>Choose a stronger password.</td></tr>
+  <tr><td>Only a Super Administrator can …</td><td>The action involves a Super Administrator account, the Super Administrator role, or re-opening a period.</td></tr>
+  <tr><td>Rate limit exceeded. Too many requests.</td><td>Too many actions in a short time. Wait a moment and retry.</td></tr>
+</table>
+
+<!-- ================= APPENDIX A ================= -->
+<h1 class="chapter" id="ch-appa"><span class="num">Appendix A</span>Permissions by Role</h1>
+<p>✔ = included in the built-in role. Finance Administrators and Super Administrators always have every permission. Custom roles can be given any combination.</p>
+<table>
+  <tr><th>Permission</th><th>Allows</th><th class="c">Senior Acct.</th><th class="c">AR Clerk</th><th class="c">Auditor</th></tr>
+  <tr><td>View General Ledger</td><td>Dashboard, Chart of Accounts, Period list, Financial Reports, Levy Returns, GL mapping view</td><td class="c yes">✔</td><td class="c no">—</td><td class="c yes">✔</td></tr>
+  <tr><td>View Journal Entries</td><td>Journal Entries Register and journal detail</td><td class="c yes">✔</td><td class="c no">—</td><td class="c yes">✔</td></tr>
+  <tr><td>Post Journal Entries</td><td>Voucher Entry</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Reverse Journals</td><td>Reversing manual journals</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Create / Update Accounts</td><td>Adding, activating and deactivating accounts</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Close Financial Periods</td><td>Closing months (re-opening: Super Administrator only)</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Force-close Periods</td><td>Closing a month whose ledger does not balance</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>View Budgets</td><td>Budgets vs. Actuals</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Create Budgets</td><td>New Budget</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>View Invoices</td><td>Invoices &amp; AR, AR Aging report</td><td class="c yes">✔</td><td class="c yes">✔</td><td class="c yes">✔</td></tr>
+  <tr><td>Create Invoices</td><td>Create New Invoice</td><td class="c yes">✔</td><td class="c yes">✔</td><td class="c no">—</td></tr>
+  <tr><td>Void Invoices</td><td>Void Invoice</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Issue Credit Notes</td><td>Issue Credit Note</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>View Payments</td><td>Customer Payments list and receipts</td><td class="c yes">✔</td><td class="c yes">✔</td><td class="c yes">✔</td></tr>
+  <tr><td>Record Payments</td><td>Record Payment</td><td class="c yes">✔</td><td class="c yes">✔</td><td class="c no">—</td></tr>
+  <tr><td>Reverse Payments</td><td>Reverse Payment</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>View Clients</td><td>Customers screen and customer lists on Invoices and Payments</td><td class="c yes">✔</td><td class="c yes">✔</td><td class="c yes">✔</td></tr>
+  <tr><td>Create / Update / Delete Clients</td><td>Adding, editing and deactivating customers</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>View / Manage Bank Reconciliation</td><td>Bank Reconciliation screen, uploads, resolving lines</td><td class="c yes">✔</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>View Audit Logs</td><td>System Audit Logs</td><td class="c yes">✔</td><td class="c no">—</td><td class="c yes">✔</td></tr>
+  <tr><td>Manage Users</td><td>User Management</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+  <tr><td>Manage Roles &amp; Settings</td><td>Roles &amp; Permissions, saving System Settings and GL mapping</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+</table>
+<p class="small">The Bank Reconciliation screen requires <b>Manage Bank Reconciliation</b>; <b>View Bank Reconciliation</b> alone does not open it.</p>
+
+<!-- ================= APPENDIX B ================= -->
+<h1 class="chapter" id="ch-appb"><span class="num">Appendix B</span>Glossary</h1>
+<table>
+  <tr><th style="width:26%">Term</th><th>Meaning</th></tr>
+  <tr><td>Accounts receivable (AR)</td><td>Money owed to the company by customers for invoices not yet paid.</td></tr>
+  <tr><td>Aging</td><td>Grouping of unpaid invoices by how many days past their due date they are.</td></tr>
+  <tr><td>Chart of accounts</td><td>The list of all general ledger accounts.</td></tr>
+  <tr><td>Contra entry</td><td>A transfer between two of the company's own cash or bank accounts.</td></tr>
+  <tr><td>Control account</td><td>A ledger account that summarises a sub-ledger (such as all customer balances) and can only be posted through that sub-ledger.</td></tr>
+  <tr><td>Credit note</td><td>A document that reduces the amount a customer owes on an invoice.</td></tr>
+  <tr><td>Debit / Credit</td><td>The two sides of every entry. Assets and expenses increase with debits; liabilities, equity and revenue increase with credits.</td></tr>
+  <tr><td>Fiscal period</td><td>A calendar month in which transactions are recorded; it can be closed.</td></tr>
+  <tr><td>GETFund levy</td><td>Ghana Education Trust Fund levy, 2.5% of the net sale value.</td></tr>
+  <tr><td>General ledger (GL)</td><td>The complete record of all the company's accounts and postings.</td></tr>
+  <tr><td>Journal entry</td><td>A balanced set of debit and credit lines recorded in the general ledger.</td></tr>
+  <tr><td>Narration</td><td>The description explaining what a journal or voucher is for.</td></tr>
+  <tr><td>NHIL</td><td>National Health Insurance Levy, 2.5% of the net sale value.</td></tr>
+  <tr><td>Output levies</td><td>VAT, NHIL and GETFund charged to customers on sales, payable to GRA.</td></tr>
+  <tr><td>Posting</td><td>Recording a transaction in the general ledger.</td></tr>
+  <tr><td>Reconciliation</td><td>Agreeing the bank statement with the company's own records.</td></tr>
+  <tr><td>Reversal</td><td>An entry that exactly cancels an earlier manual journal.</td></tr>
+  <tr><td>Trial balance</td><td>List of all account balances, used to confirm total debits equal total credits.</td></tr>
+  <tr><td>VAT</td><td>Value Added Tax, 15% of the net sale value.</td></tr>
+  <tr><td>Void</td><td>Cancellation of an unpaid invoice, reversing all its ledger entries.</td></tr>
+  <tr><td>Voucher</td><td>A manual journal entry (payment, receipt, contra or journal voucher).</td></tr>
+</table>
+
+</body>
+</html>
