@@ -1,7 +1,7 @@
 import { getDb, type ConnectionPool } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'POST' | 'VOID' | 'CLOSE';
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'POST' | 'VOID' | 'CLOSE' | 'REOPEN';
 
 export type AuditLogEntry = {
   entityType: string;

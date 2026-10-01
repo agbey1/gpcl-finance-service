@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { validateApiAuth, serverError } from '@/lib/apiAuth';
 import { hasPermission } from '@/lib/auth';
+import { logAudit } from '@/lib/auditLog';
 
 export async function POST(req: NextRequest) {
   try {
@@ -113,6 +114,15 @@ export async function POST(req: NextRequest) {
             (@y, @p, 1, @closedBy, @closedAt, @notes)
         `);
     }
+
+    await logAudit({
+      entityType: 'FINANCIAL_PERIOD',
+      entityId: `${year}-${String(periodNumber).padStart(2, '0')}`,
+      action: 'CLOSE',
+      userId: session!.userId,
+      newValue: { isClosed: true, closedAt: cDate.toISOString(), forced: Boolean(force), notes: notes || null },
+      description: `Fiscal period ${periodNumber}/${year} closed${force ? ' (GL balance check bypassed)' : ''}`,
+    });
 
     return NextResponse.json(
       {

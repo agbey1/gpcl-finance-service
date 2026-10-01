@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Lock, ShieldAlert, RefreshCw } from 'lucide-react';
+import { Lock, Unlock, ShieldAlert, RefreshCw } from 'lucide-react';
 import { api, errMsg, fmt, postJson } from '@/lib/clientApi';
 
 interface Period {
@@ -26,6 +26,13 @@ export default function PeriodClosePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<number | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    api<{ user: { role: string } }>('/api/v1/auth/me')
+      .then((d) => setIsSuperAdmin(d.user.role === 'SUPER_ADMIN'))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(async (y: number) => {
     setLoading(true);
@@ -48,7 +55,7 @@ export default function PeriodClosePage() {
 
   const closePeriod = async (p: Period) => {
     const label = `${MONTHS[p.periodNumber - 1]} ${p.fiscalYear}`;
-    if (!confirm(`Close ${label}? No further postings will be accepted for this month. Re-opening requires a database administrator.`)) return;
+    if (!confirm(`Close ${label}? No further postings will be accepted for this month. Only a Super Administrator can re-open it.`)) return;
     setBusy(p.periodNumber);
     try {
       await postJson('/api/v1/accounting/periods/close', {
@@ -59,6 +66,27 @@ export default function PeriodClosePage() {
       await load(year);
     } catch (e) {
       alert(errMsg(e, 'Failed to close period'));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reopenPeriod = async (p: Period) => {
+    const label = `${MONTHS[p.periodNumber - 1]} ${p.fiscalYear}`;
+    const reason = prompt(`Re-open ${label}? Postings dated in this month will be accepted again.
+
+Reason (recorded in the audit log, at least 10 characters):`);
+    if (reason === null) return;
+    if (reason.trim().length < 10) {
+      alert('Please give a reason of at least 10 characters.');
+      return;
+    }
+    setBusy(p.periodNumber);
+    try {
+      await postJson('/api/v1/accounting/periods/reopen', { year: p.fiscalYear, periodNumber: p.periodNumber, reason: reason.trim() });
+      await load(year);
+    } catch (e) {
+      alert(errMsg(e, 'Failed to re-open period'));
     } finally {
       setBusy(null);
     }
@@ -85,7 +113,7 @@ export default function PeriodClosePage() {
 
       <div style={{ padding: '14px 18px', background: 'rgba(217, 119, 6, 0.1)', border: '1px solid #d97706', borderRadius: '8px', color: '#d97706', fontSize: '13.5px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
         <ShieldAlert size={18} />
-        <span>Closing is permanent from this screen. The ledger for the month must balance before it can be closed.</span>
+        <span>The ledger for the month must balance before it can be closed. Only a Super Administrator can re-open a closed month, and every close and re-open is recorded in the audit log.</span>
       </div>
 
       <div className="card">
@@ -127,6 +155,18 @@ export default function PeriodClosePage() {
                       >
                         <Lock size={12} />
                         {busy === p.periodNumber ? 'Closing…' : 'Close'}
+                      </button>
+                    )}
+                    {p.isClosed && isSuperAdmin && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '12px' }}
+                        disabled={busy !== null}
+                        title="Re-open this period (Super Administrator)"
+                        onClick={() => reopenPeriod(p)}
+                      >
+                        <Unlock size={12} />
+                        {busy === p.periodNumber ? 'Re-opening…' : 'Re-open'}
                       </button>
                     )}
                   </td>
