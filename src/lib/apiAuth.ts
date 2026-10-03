@@ -61,6 +61,8 @@ export function getClientIp(req: NextRequest): string {
     const real = req.headers.get('x-real-ip');
     if (real) return real.trim();
   }
+  const reqIp = (req as { ip?: string }).ip;
+  if (reqIp) return reqIp;
   return 'direct';
 }
 

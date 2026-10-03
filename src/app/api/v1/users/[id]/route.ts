@@ -231,7 +231,7 @@ export async function PATCH(
 
     if (process.env.NODE_ENV === 'production') {
       return NextResponse.json(
-        { status: 'ERROR', message: `Database update failed: ${dbErrorMsg || 'Database unavailable'}` },
+        { status: 'ERROR', message: 'Database update failed. Please contact system administrator.' },
         { status: 500 }
       );
     }

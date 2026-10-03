@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     // Strict production isolation: return 500 error if DB insert failed in production
     if (process.env.NODE_ENV === 'production') {
       return NextResponse.json(
-        { status: 'ERROR', message: `Database error creating user account: ${dbErrorMsg}` },
+        { status: 'ERROR', message: 'Database error creating user account. Please contact system administrator.' },
         { status: 500 }
       );
     }
